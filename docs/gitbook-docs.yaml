@@ -1,0 +1,95 @@
+$schema: https://api.gitbook.com/gitbook-docs.yaml
+site:
+  title: Hektor
+  structure:
+    - type: section
+      key: section-1
+      title: HEKTOR
+      path: hektor
+      description: ""
+      icon: square-full
+      default: true
+      children:
+        - type: space
+          key: space-7
+          title: System
+          path: system
+          default: true
+          content:
+            directory: ./docs/.DOCS
+    - type: section
+      key: section-2
+      title: Blog
+      path: blog
+      children:
+        - type: space
+          key: space-1
+          title: Blog
+          path: blog
+          default: true
+          content:
+            directory: ./docs/.BLOG
+    - type: section
+      key: section-3
+      title: Articles
+      path: articles
+      children:
+        - type: space
+          key: space-2
+          title: Articles
+          path: articles
+          default: true
+          content:
+            directory: ./docs/.ARTICLES
+    - type: section
+      key: section-5
+      title: Research
+      path: research
+      children:
+        - type: space
+          key: space-4
+          title: Research
+          path: research
+          default: true
+          content:
+            directory: ./docs/.RESEARCH
+    - type: section-group
+      key: section-group-1
+      title: Stakeholders
+      children:
+        - type: section
+          key: section-4
+          title: Scope
+          path: scope
+          children:
+            - type: space
+              key: space-3
+              title: Scope
+              path: scope
+              default: true
+              content:
+                directory: ./docs/.SCOPE
+        - type: section
+          key: section-7
+          title: Benchmark
+          path: benchmark
+          children:
+            - type: space
+              key: space-6
+              title: Benchmark
+              path: benchmark
+              default: true
+              content:
+                directory: ./docs/.BENCHMARK
+    - type: section
+      key: section-6
+      title: Changelog
+      path: changelog
+      children:
+        - type: space
+          key: space-5
+          title: Changelog
+          path: changelog
+          default: true
+          content:
+            directory: ./docs/.CHANGELOG
