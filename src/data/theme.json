@@ -1,0 +1,18 @@
+{
+  "name": "HEKTOR Ionized Haze",
+  "colors": {
+    "baseBg": "#050505",
+    "hazePrimary": "#1a0b2e",
+    "hazeSecondary": "#091220",
+    "surface": "rgba(10, 16, 28, 0.78)",
+    "surfaceStrong": "rgba(10, 16, 28, 0.94)",
+    "textPrimary": "#f8fafc",
+    "textSecondary": "#cbd5e1",
+    "textMuted": "#94a3b8",
+    "accentPrimary": "#22d3ee",
+    "accentSecondary": "#a78bfa",
+    "success": "#34d399",
+    "warning": "#fbbf24",
+    "border": "rgba(148, 163, 184, 0.24)"
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "benchmarks": {
+    "tcoSavings": "60-80% lower TCO",
+    "latency": "2.9ms p99 at 1M vectors",
+    "recall": "96.8-98.1% recall at scale"
+  },
+  "plans": [
+    {
+      "id": "community",
+      "name": "Community",
+      "priceLabel": "Free",
+      "billing": "MIT self-hosted",
+      "annualPriceUsd": 0,
+      "audience": "Developer-first",
+      "summary": "Open-source core with no per-vector pricing, no feature gates, and unlimited scale for self-hosted teams.",
+      "commitments": [
+        "MIT license",
+        "Unlimited scale",
+        "No monthly platform fees",
+        "Community documentation and guides"
+      ]
+    },
+    {
+      "id": "basic-support",
+      "name": "Basic Support",
+      "priceLabel": "$5,000",
+      "billing": "per year",
+      "annualPriceUsd": 5000,
+      "audience": "Evaluation to launch",
+      "summary": "Entry support for teams that need a direct path into production without managed-service lock-in.",
+      "commitments": [
+        "Email support",
+        "48-hour SLA",
+        "Quarterly updates",
+        "Community access"
+      ]
+    },
+    {
+      "id": "standard-support",
+      "name": "Standard Support",
+      "priceLabel": "$15,000",
+      "billing": "per year",
+      "annualPriceUsd": 15000,
+      "audience": "Production teams",
+      "summary": "Primary support membership for migrations, onboarding, and operating a performance-critical Hektor deployment.",
+      "commitments": [
+        "Email and chat support",
+        "24-hour SLA",
+        "Monthly check-ins",
+        "Migration assistance"
+      ]
+    },
+    {
+      "id": "premium-support",
+      "name": "Premium Support",
+      "priceLabel": "$50,000",
+      "billing": "per year",
+      "annualPriceUsd": 50000,
+      "audience": "Mission-critical operations",
+      "summary": "High-touch operational membership for organizations running Hektor as a core search or retrieval layer.",
+      "commitments": [
+        "24/7 support",
+        "4-hour SLA",
+        "Dedicated support engineer",
+        "Architecture review and training"
+      ]
+    },
+    {
+      "id": "enterprise-support",
+      "name": "Enterprise Support",
+      "priceLabel": "Custom",
+      "billing": "annual contract",
+      "annualPriceUsd": 100000,
+      "audience": "Strategic accounts",
+      "summary": "Custom membership for named account management, critical incident guarantees, and roadmap partnership.",
+      "commitments": [
+        "Named technical account manager",
+        "1-hour critical issue SLA",
+        "Custom SLA terms",
+        "Strategic roadmap influence"
+      ]
+    }
+  ],
+  "cloudProjections": [
+    {
+      "name": "Hektor Cloud · 1M vectors",
+      "priceLabel": "$400/month",
+      "notes": "Projected managed-service tier for teams that want Hektor without infrastructure ownership."
+    },
+    {
+      "name": "Hektor Cloud · 10M vectors",
+      "priceLabel": "$2,000/month",
+      "notes": "Projected mid-scale route positioned 40-50% below Pinecone and Weaviate."
+    },
+    {
+      "name": "Hektor Cloud · 100M vectors",
+      "priceLabel": "$12,000/month",
+      "notes": "Projected large-scale managed motion for customers prioritizing performance and no-ops delivery."
+    }
+  ]
+}
