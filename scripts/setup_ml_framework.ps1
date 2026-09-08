@@ -92,7 +92,9 @@ if (-not $SkipTensorFlow) {
     Write-Host "[2/6] Installing TensorFlow C API..." -ForegroundColor Yellow
     
     $tfVersion = "2.15.0"
-    $tfDir = "C:\Program Files\TensorFlow"
+    $programFiles = $env:ProgramFiles
+    if (-not $programFiles) { $programFiles = "C:\Program Files" }
+    $tfDir = Join-Path $programFiles "TensorFlow"
     $tfUrl = "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-cpu-windows-x86_64-$tfVersion.zip"
     
     if (Test-Path $tfDir) {
@@ -138,7 +140,9 @@ if (-not $SkipPyTorch) {
     Write-Host "[3/6] Installing LibTorch (PyTorch C++)..." -ForegroundColor Yellow
     
     $torchVersion = "2.1.2"
-    $torchDir = "C:\Program Files\LibTorch"
+    $programFiles = $env:ProgramFiles
+    if (-not $programFiles) { $programFiles = "C:\Program Files" }
+    $torchDir = Join-Path $programFiles "LibTorch"
     
     # Check CUDA availability
     $hasCuda = $false

@@ -74,21 +74,34 @@ install_python() {
     
     case $OS_TYPE in
         macos)
+            local brew_prefix=""
             if command -v brew &> /dev/null; then
                 echo -e "      ${CYAN}Installing via Homebrew...${NC}"
                 brew install python@3.12
-                export PATH="/opt/homebrew/opt/python@3.12/bin:/usr/local/opt/python@3.12/bin:$PATH"
+                brew_prefix="$(brew --prefix)"
+                if [[ -z "$brew_prefix" ]]; then
+                    echo -e "      ${RED}Unable to determine Homebrew prefix.${NC}"
+                    return 1
+                fi
+                export PATH="${brew_prefix}/opt/python@3.12/bin:$PATH"
                 return 0
             else
                 echo -e "      ${YELLOW}Installing Homebrew first...${NC}"
                 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-                if [[ -f "/opt/homebrew/bin/brew" ]]; then
-                    eval "$(/opt/homebrew/bin/brew shellenv)"
-                elif [[ -f "/usr/local/bin/brew" ]]; then
-                    eval "$(/usr/local/bin/brew shellenv)"
+                if command -v brew &> /dev/null; then
+                    eval "$(brew shellenv)"
+                else
+                    echo -e "      ${RED}Homebrew installation completed but 'brew' is not on PATH.${NC}"
+                    echo -e "      ${YELLOW}Please restart your shell or run the Homebrew shellenv command, then retry.${NC}"
+                    return 1
                 fi
                 brew install python@3.12
-                export PATH="/opt/homebrew/opt/python@3.12/bin:/usr/local/opt/python@3.12/bin:$PATH"
+                brew_prefix="$(brew --prefix)"
+                if [[ -z "$brew_prefix" ]]; then
+                    echo -e "      ${RED}Unable to determine Homebrew prefix.${NC}"
+                    return 1
+                fi
+                export PATH="${brew_prefix}/opt/python@3.12/bin:$PATH"
                 return 0
             fi
             ;;
