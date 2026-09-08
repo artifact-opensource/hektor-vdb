@@ -1,4 +1,5 @@
-import { FormEvent, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { FormEvent } from 'react'
 import themeData from './data/theme.json'
 import pricingData from './data/pricing.json'
 import modelingData from './data/modeling.json'
