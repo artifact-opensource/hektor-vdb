@@ -1,379 +1,1681 @@
 <!DOCTYPE html>
-<html lang="en" class="scroll-smooth">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>HEKTOR | KINETIC</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>HEKTOR Platform — Vector Infrastructure for Real AI Workloads</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:ital,wght@0,200;0,800;1,800&family=JetBrains+Mono:wght@300;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --haze-1: #1a0b2e;
-            --haze-2: #091220;
-            --ion-glow: #a78bfa;
-            --ion-cyan: #22d3ee;
-            --base-bg: #050505;
+            --bg-deep: #060A10;
+            --bg-base: #0C1119;
+            --bg-surface: #131A26;
+            --bg-elevated: #1A2233;
+            --bg-card: #1E2738;
+            --accent: #C9952A;
+            --accent-bright: #E8B84A;
+            --accent-dim: #8A6A1E;
+            --accent-glow: rgba(201, 149, 42, 0.15);
+            --text-primary: #E4EAF0;
+            --text-secondary: #8A9AB0;
+            --text-muted: #54637A;
+            --border: #243044;
+            --border-accent: rgba(201, 149, 42, 0.3);
+            --font-display: 'Space Grotesk', sans-serif;
+            --font-data: 'JetBrains Mono', monospace;
         }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
 
         body {
-            background-color: var(--base-bg);
-            color: #fff;
-            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-family: var(--font-display);
+            background: var(--bg-deep);
+            color: var(--text-primary);
             overflow-x: hidden;
-            cursor: crosshair;
+            line-height: 1.6;
         }
 
-        .mono { font-family: 'JetBrains Mono', monospace; }
-
-        /* Kinetic Background Effect */
-        .haze-canvas {
+        /* STONE TEXTURE OVERLAY */
+        .stone-overlay {
             position: fixed;
             inset: 0;
-            z-index: -1;
-            background: radial-gradient(circle at var(--mx, 50%) var(--my, 50%), 
-                        rgba(167, 139, 250, 0.15) 0%, 
-                        rgba(34, 211, 238, 0.05) 30%, 
-                        transparent 70%);
-            filter: url(#ionize);
-        }
-
-        /* SVG Grain Overlay */
-        .grain-layer {
-            position: fixed;
-            inset: 0;
-            z-index: 100;
             pointer-events: none;
-            opacity: 0.4;
-            mix-blend-mode: overlay;
+            z-index: 0;
+            opacity: 0.03;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' seed='5'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+            background-size: 128px 128px;
         }
 
-        /* Ionized Text */
-        .text-ion {
-            background: linear-gradient(135deg, #fff 0%, var(--ion-glow) 50%, var(--ion-cyan) 100%);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
+        /* LIGHT RAYS */
+        .light-rays {
+            position: fixed;
+            top: -50%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 120%;
+            height: 150%;
+            pointer-events: none;
+            z-index: 0;
+            background: radial-gradient(ellipse at 50% -10%, rgba(201,149,42,0.04) 0%, transparent 50%);
+        }
+
+        /* NAVIGATION */
+        .nav {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            background: rgba(6, 10, 16, 0.85);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 2rem;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .nav-logo {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 1.25rem;
+            letter-spacing: 0.15em;
+            color: var(--text-primary);
+            text-decoration: none;
+        }
+        .nav-logo span { color: var(--accent); }
+        .nav-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+        .nav-links a {
+            font-size: 0.8rem;
+            font-weight: 500;
+            letter-spacing: 0.08em;
+            color: var(--text-secondary);
+            text-decoration: none;
+            text-transform: uppercase;
+            transition: color 0.3s;
+        }
+        .nav-links a:hover { color: var(--accent); }
+        .nav-cta {
+            font-family: var(--font-display);
+            font-size: 0.75rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: var(--bg-deep);
+            background: var(--accent);
+            padding: 0.5rem 1.25rem;
+            border-radius: 2px;
+            text-decoration: none;
+            text-transform: uppercase;
+            transition: background 0.3s, transform 0.2s;
+        }
+        .nav-cta:hover { background: var(--accent-bright); transform: translateY(-1px); }
+        .nav-mobile-btn {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+
+        /* HERO */
+        .hero {
             position: relative;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 8rem 4rem 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
         }
-
-        .text-ion::after {
-            content: attr(data-text);
-            position: absolute;
-            left: 0; top: 0;
-            z-index: -1;
-            filter: blur(15px);
-            opacity: 0.6;
-            background: inherit;
-            -webkit-background-clip: text;
-            background-clip: text;
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-data);
+            font-size: 0.7rem;
+            font-weight: 500;
+            letter-spacing: 0.15em;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-bottom: 2rem;
         }
-
-        /* Kinetic Shells (Non-generic cards) */
-        .kinetic-shell {
-            position: relative;
-            background: rgba(255, 255, 255, 0.02);
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
-            backdrop-filter: blur(10px);
-            transition: all 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-            clip-path: polygon(0 0, 100% 0, 100% 85%, 90% 100%, 0 100%);
-        }
-
-        .kinetic-shell:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-left: 1px solid var(--ion-cyan);
-            transform: translateX(10px);
-        }
-
-        .kinetic-shell::before {
+        .hero-badge::before {
             content: '';
-            position: absolute;
-            top: 0; left: 0; width: 100%; height: 2px;
-            background: linear-gradient(90deg, var(--ion-cyan), transparent);
-            transform: scaleX(0);
-            transform-origin: left;
-            transition: transform 0.6s ease;
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; box-shadow: 0 0 0 0 var(--accent-glow); }
+            50% { opacity: 0.7; box-shadow: 0 0 0 6px transparent; }
+        }
+        .hero h1 {
+            font-size: clamp(3rem, 8vw, 7.5rem);
+            font-weight: 700;
+            line-height: 0.95;
+            letter-spacing: -0.03em;
+            margin-bottom: 1.5rem;
+        }
+        .hero h1 .accent { color: var(--accent); }
+        .hero .subtitle {
+            font-size: clamp(1rem, 2vw, 1.35rem);
+            font-weight: 300;
+            color: var(--text-secondary);
+            max-width: 700px;
+            line-height: 1.7;
+            margin-bottom: 3rem;
+        }
+        .hero-actions {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        .btn-primary {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.06em;
+            color: var(--bg-deep);
+            background: var(--accent);
+            padding: 0.85rem 2rem;
+            border: none;
+            border-radius: 2px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: background 0.3s, transform 0.2s, box-shadow 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-primary:hover { background: var(--accent-bright); transform: translateY(-2px); box-shadow: 0 4px 30px rgba(201,149,42,0.3); }
+        .btn-outline {
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 500;
+            letter-spacing: 0.06em;
+            color: var(--text-primary);
+            background: transparent;
+            border: 1px solid var(--border);
+            padding: 0.85rem 2rem;
+            border-radius: 2px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: border-color 0.3s, color 0.3s;
+            text-transform: uppercase;
+        }
+        .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+        /* HERO METRICS */
+        .hero-metrics {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 5rem;
+            padding-top: 3rem;
+            border-top: 1px solid var(--border);
+        }
+        .hero-metric {
+            opacity: 0;
+            transform: translateY(30px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .hero-metric.visible { opacity: 1; transform: translateY(0); }
+        .hero-metric .metric-value {
+            font-family: var(--font-data);
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.1;
+        }
+        .hero-metric .metric-value .unit {
+            color: var(--accent);
+            font-weight: 600;
+        }
+        .hero-metric .metric-label {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 0.5rem;
+            line-height: 1.5;
         }
 
-        .kinetic-shell:hover::before {
-            transform: scaleX(1);
-        }
-
-        /* Ion Beam Button */
-        .ion-btn {
+        /* SECTION BASE */
+        section {
             position: relative;
-            padding: 1.25rem 3rem;
-            font-weight: 800;
+            z-index: 1;
+        }
+        .section-header {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 0 4rem;
+            margin-bottom: 3rem;
+        }
+        .section-tag {
+            font-family: var(--font-data);
+            font-size: 0.65rem;
+            font-weight: 600;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: white;
-            transition: 0.4s;
-            overflow: hidden;
-            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--accent);
+            margin-bottom: 0.75rem;
+        }
+        .section-title {
+            font-size: clamp(2rem, 4vw, 3.5rem);
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            line-height: 1.1;
+        }
+        .section-desc {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            max-width: 600px;
+            line-height: 1.7;
         }
 
-        .ion-btn:hover {
-            background: white;
-            color: black;
-            box-shadow: 0 0 50px rgba(34, 211, 238, 0.4);
+        /* PERFORMANCE LEADERSHIP */
+        .performance {
+            padding: 6rem 4rem;
+            background: var(--bg-base);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
         }
-
-        .ion-btn .beam {
+        .performance-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0;
+        }
+        .perf-card {
+            position: relative;
+            padding: 3rem;
+            text-align: center;
+            transition: background 0.4s;
+        }
+        .perf-card:not(:last-child)::after {
+            content: '';
             position: absolute;
-            top: 0; left: -100%;
-            width: 100%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
-            transition: 0.6s;
+            right: 0;
+            top: 20%;
+            height: 60%;
+            width: 1px;
+            background: var(--border);
+        }
+        .perf-card:hover { background: rgba(201, 149, 42, 0.03); }
+        .perf-number {
+            font-family: var(--font-data);
+            font-size: clamp(2.5rem, 5vw, 4.5rem);
+            font-weight: 700;
+            line-height: 1;
+            color: var(--text-primary);
+        }
+        .perf-number .highlight { color: var(--accent); }
+        .perf-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-top: 1rem;
+            line-height: 1.7;
+            max-width: 350px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .perf-source {
+            font-family: var(--font-data);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            margin-top: 1rem;
+            letter-spacing: 0.05em;
         }
 
-        .ion-btn:hover .beam {
-            left: 100%;
+        /* CAPABILITIES */
+        .capabilities {
+            padding: 6rem 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .cap-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+        .cap-card {
+            padding: 2.5rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-radius: 0;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+        .cap-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .cap-card:hover { border-color: var(--border-accent); transform: translateY(-4px); }
+        .cap-card:hover::before { opacity: 1; }
+        .cap-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--bg-card);
+        }
+        .cap-icon svg { width: 24px; height: 24px; stroke: var(--accent); fill: none; stroke-width: 1.5; }
+        .cap-card h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+            letter-spacing: -0.01em;
+        }
+        .cap-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
         }
 
-        /* Data Stream Scroller */
-        .data-stream {
-            mask-image: linear-gradient(to bottom, transparent, black 20%, black 80%, transparent);
+        /* PLATFORM DEPTH */
+        .platform-depth {
+            padding: 6rem 4rem;
+            background: var(--bg-base);
+            border-top: 1px solid var(--border);
         }
-
-        @keyframes pulse-ion {
-            0%, 100% { opacity: 0.5; filter: blur(2px); }
-            50% { opacity: 1; filter: blur(0px); }
+        .depth-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
         }
-
-        .ion-indicator {
-            width: 8px; height: 8px;
-            background: var(--ion-cyan);
+        .depth-group h4 {
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--accent);
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .depth-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.6rem 0;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            border-bottom: 1px solid rgba(36, 48, 68, 0.5);
+        }
+        .depth-item:last-child { border-bottom: none; }
+        .depth-item .check {
+            flex-shrink: 0;
+            width: 6px;
+            height: 6px;
+            background: var(--accent);
             border-radius: 50%;
-            box-shadow: 0 0 15px var(--ion-cyan);
-            animation: pulse-ion 2s infinite;
+            margin-top: 0.45rem;
         }
 
+        /* TARGET SEGMENTS */
+        .segments {
+            padding: 6rem 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .segments-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+        }
+        .seg-card {
+            padding: 2.5rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            position: relative;
+            transition: all 0.4s;
+        }
+        .seg-card:hover { border-color: var(--border-accent); }
+        .seg-card .seg-icon {
+            font-family: var(--font-data);
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--accent);
+            opacity: 0.3;
+            margin-bottom: 1rem;
+        }
+        .seg-card h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 0.75rem;
+        }
+        .seg-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+        .seg-lead {
+            font-family: var(--font-data);
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            text-transform: uppercase;
+        }
+
+        /* DEPLOYMENT OPTIONS */
+        .deployment {
+            padding: 6rem 4rem;
+            background: var(--bg-base);
+            border-top: 1px solid var(--border);
+        }
+        .deployment-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+        }
+        .dep-card {
+            padding: 2.5rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            border-top: 3px solid var(--accent);
+            transition: all 0.4s;
+        }
+        .dep-card:hover { background: var(--bg-card); transform: translateY(-2px); }
+        .dep-card h3 {
+            font-size: 1.15rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .dep-card .dep-subtitle {
+            font-size: 0.8rem;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+        .dep-card p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+        .dep-pill {
+            display: inline-block;
+            font-family: var(--font-data);
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            padding: 0.3rem 0.75rem;
+            background: var(--accent-glow);
+            color: var(--accent);
+            border-radius: 2px;
+            margin-right: 0.4rem;
+            margin-bottom: 0.4rem;
+        }
+
+        /* OPERATIONAL USE CASES */
+        .use-cases {
+            padding: 6rem 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .cases-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+        .case-item {
+            padding: 2rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            transition: all 0.4s;
+            display: flex;
+            gap: 1.5rem;
+            align-items: flex-start;
+        }
+        .case-item:hover { border-color: var(--border-accent); background: var(--bg-card); }
+        .case-num {
+            font-family: var(--font-data);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            opacity: 0.4;
+            line-height: 1;
+            flex-shrink: 0;
+        }
+        .case-content h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .case-content p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+        }
+        .case-content .case-lead {
+            font-family: var(--font-data);
+            font-size: 0.65rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            color: var(--accent);
+            text-transform: uppercase;
+            margin-top: 0.75rem;
+        }
+
+        /* PRICING */
+        .pricing-section {
+            padding: 6rem 4rem;
+            background: var(--bg-base);
+            border-top: 1px solid var(--border);
+            border-bottom: 1px solid var(--border);
+        }
+        .pricing-grid {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            align-items: start;
+        }
+        .pricing-card {
+            padding: 2rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+            transition: all 0.4s;
+            position: relative;
+        }
+        .pricing-card:hover { border-color: var(--border-accent); transform: translateY(-4px); }
+        .pricing-card.featured {
+            border-color: var(--accent);
+            background: var(--bg-card);
+        }
+        .pricing-card.featured::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--accent);
+        }
+        .pricing-card .pc-label {
+            font-family: var(--font-data);
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.15em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.75rem;
+        }
+        .pricing-card .pc-name {
+            font-size: 1.1rem;
+            font-weight: 700;
+            margin-bottom: 0.25rem;
+        }
+        .pricing-card .pc-price {
+            font-family: var(--font-data);
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.25rem;
+        }
+        .pricing-card .pc-price .pc-currency {
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .pricing-card .pc-price .pc-period {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .pricing-card .pc-free {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+        .pricing-card .pc-features {
+            list-style: none;
+            margin-bottom: 1.5rem;
+        }
+        .pricing-card .pc-features li {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            padding: 0.35rem 0;
+            line-height: 1.5;
+            border-bottom: 1px solid rgba(36,48,68,0.5);
+        }
+        .pricing-card .pc-features li::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 4px;
+            background: var(--accent);
+            border-radius: 50%;
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+        .pricing-card .pc-btn {
+            display: block;
+            width: 100%;
+            text-align: center;
+            font-family: var(--font-display);
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0.7rem;
+            border-radius: 2px;
+            text-decoration: none;
+            transition: all 0.3s;
+        }
+        .pricing-card .pc-btn.solid {
+            background: var(--accent);
+            color: var(--bg-deep);
+            border: none;
+        }
+        .pricing-card .pc-btn.solid:hover { background: var(--accent-bright); }
+        .pricing-card .pc-btn.outline {
+            background: transparent;
+            color: var(--text-primary);
+            border: 1px solid var(--border);
+        }
+        .pricing-card .pc-btn.outline:hover { border-color: var(--accent); color: var(--accent); }
+        .pricing-card.planned .pc-planned-badge {
+            display: inline-block;
+            font-family: var(--font-data);
+            font-size: 0.55rem;
+            font-weight: 600;
+            letter-spacing: 0.1em;
+            padding: 0.2rem 0.5rem;
+            background: rgba(201,149,42,0.15);
+            color: var(--accent);
+            border-radius: 2px;
+            margin-bottom: 0.75rem;
+            text-transform: uppercase;
+        }
+        .pricing-cloud-tier {
+            grid-column: span 4;
+            padding: 2rem;
+            background: linear-gradient(135deg, var(--bg-card), var(--bg-surface));
+            border: 1px solid var(--border);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            align-items: center;
+        }
+        .cloud-tier-block { text-align: center; }
+        .cloud-tier-block .ct-name {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.5rem;
+        }
+        .cloud-tier-block .ct-price {
+            font-family: var(--font-data);
+            font-size: 1.75rem;
+            font-weight: 700;
+        }
+        .cloud-tier-block .ct-price .ct-period {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+        .cloud-tier-block .ct-desc {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-top: 0.5rem;
+            max-width: 250px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        /* SIGNUP */
+        .signup {
+            padding: 6rem 4rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .signup-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: start;
+        }
+        .signup-info h3 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+        .signup-info p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.8;
+            margin-bottom: 1.5rem;
+        }
+        .signup-email-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-data);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent);
+            text-decoration: none;
+            letter-spacing: 0.05em;
+            transition: gap 0.3s;
+        }
+        .signup-email-link:hover { gap: 0.8rem; }
+        .signup-form {
+            padding: 2.5rem;
+            background: var(--bg-surface);
+            border: 1px solid var(--border);
+        }
+        .form-group {
+            margin-bottom: 1.25rem;
+        }
+        .form-group label {
+            display: block;
+            font-family: var(--font-data);
+            font-size: 0.6rem;
+            font-weight: 600;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 0.4rem;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            font-family: var(--font-display);
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            padding: 0.75rem 1rem;
+            border-radius: 2px;
+            transition: border-color 0.3s;
+            outline: none;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus {
+            border-color: var(--accent);
+        }
+        .form-group textarea {
+            min-height: 80px;
+            resize: vertical;
+        }
+        .form-group .form-error {
+            font-size: 0.7rem;
+            color: #e74c3c;
+            margin-top: 0.3rem;
+            display: none;
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+        .btn-submit {
+            width: 100%;
+            font-family: var(--font-display);
+            font-size: 0.85rem;
+            font-weight: 600;
+            letter-spacing: 0.08em;
+            color: var(--bg-deep);
+            background: var(--accent);
+            border: none;
+            padding: 1rem;
+            border-radius: 2px;
+            cursor: pointer;
+            text-transform: uppercase;
+            transition: all 0.3s;
+            margin-top: 0.5rem;
+        }
+        .btn-submit:hover { background: var(--accent-bright); transform: translateY(-1px); box-shadow: 0 4px 20px rgba(201,149,42,0.3); }
+        .btn-submit:active { transform: translateY(0); }
+        .signup-note {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            margin-top: 1rem;
+            line-height: 1.5;
+        }
+        .signup-note strong { color: var(--text-secondary); }
+
+        /* FOOTER */
+        .footer {
+            padding: 3rem 4rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .footer-brand {
+            font-family: var(--font-display);
+            font-weight: 700;
+            font-size: 0.85rem;
+            letter-spacing: 0.1em;
+        }
+        .footer-brand span { color: var(--accent); }
+        .footer-links {
+            display: flex;
+            gap: 2rem;
+            list-style: none;
+        }
+        .footer-links a {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-decoration: none;
+            transition: color 0.3s;
+        }
+        .footer-links a:hover { color: var(--accent); }
+        .footer-copy {
+            font-family: var(--font-data);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+        }
+
+        /* SCROLL REVEAL */
         .reveal {
             opacity: 0;
-            transform: translateY(40px) skewY(2deg);
-            transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: translateY(40px);
+            transition: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
         }
-
-        .reveal.active {
+        .reveal.visible {
             opacity: 1;
-            transform: translateY(0) skewY(0deg);
+            transform: translateY(0);
+        }
+        .reveal-delay-1 { transition-delay: 0.1s; }
+        .reveal-delay-2 { transition-delay: 0.2s; }
+        .reveal-delay-3 { transition-delay: 0.3s; }
+        .reveal-delay-4 { transition-delay: 0.4s; }
+
+        /* MOBILE MENU */
+        .mobile-menu {
+            display: none;
+            position: fixed;
+            top: 64px;
+            left: 0;
+            right: 0;
+            background: rgba(6, 10, 16, 0.98);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+            padding: 2rem;
+            z-index: 99;
+        }
+        .mobile-menu.active { display: block; }
+        .mobile-menu a {
+            display: block;
+            font-size: 1rem;
+            color: var(--text-primary);
+            text-decoration: none;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border);
         }
 
+        /* TOAST */
+        .toast {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            padding: 1rem 1.5rem;
+            background: var(--bg-elevated);
+            border: 1px solid var(--accent);
+            border-radius: 4px;
+            font-size: 0.85rem;
+            color: var(--text-primary);
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            max-width: 400px;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+
+        /* RESPONSIVE */
+        @media (max-width: 1024px) {
+            .hero { padding: 7rem 2rem 3rem; }
+            .hero-metrics { grid-template-columns: 1fr; gap: 2rem; }
+            .performance-grid { grid-template-columns: 1fr; }
+            .perf-card:not(:last-child)::after { display: none; }
+            .cap-grid, .segments-grid, .deployment-grid { grid-template-columns: 1fr; }
+            .depth-grid { grid-template-columns: 1fr 1fr; }
+            .cases-grid { grid-template-columns: 1fr; }
+            .pricing-grid { grid-template-columns: repeat(2, 1fr); }
+            .pricing-cloud-tier { grid-column: span 2; grid-template-columns: repeat(3, 1fr); }
+            .signup-container { grid-template-columns: 1fr; }
+            .footer { flex-direction: column; text-align: center; }
+            .footer-links { justify-content: center; }
+        }
+        @media (max-width: 768px) {
+            .nav-links { display: none; }
+            .nav-mobile-btn { display: block; }
+            .depth-grid { grid-template-columns: 1fr; }
+            .pricing-grid { grid-template-columns: 1fr; }
+            .pricing-cloud-tier { grid-column: span 1; grid-template-columns: 1fr; }
+            .form-row { grid-template-columns: 1fr; }
+            .hero { padding: 6rem 1.5rem 2rem; }
+            .section-header { padding: 0 1.5rem; }
+            section { padding: 4rem 1.5rem; }
+            .performance, .platform-depth, .deployment, .pricing-section, .signup { padding-left: 1.5rem; padding-right: 1.5rem; }
+            .footer { padding: 2rem 1.5rem; }
+        }
+
+        /* CUSTOM SCROLLBAR */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-deep); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+        /* REDUCED MOTION */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
+
+        /* AMBIENT GLOW */
+        .ambient-glow {
+            position: fixed;
+            width: 600px;
+            height: 600px;
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 0;
+            filter: blur(150px);
+            opacity: 0.04;
+            background: var(--accent);
+        }
+        .ambient-glow-1 { top: -200px; left: -100px; }
+        .ambient-glow-2 { bottom: -200px; right: -100px; }
+
+        /* VERTICAL RULER accent */
+        .v-rule {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 1px;
+            background: linear-gradient(180deg, transparent, var(--accent), transparent);
+            opacity: 0.15;
+        }
     </style>
 </head>
-<body class="selection:bg-cyan-500/30">
+<body>
+    <div class="stone-overlay"></div>
+    <div class="light-rays"></div>
+    <div class="ambient-glow ambient-glow-1"></div>
+    <div class="ambient-glow ambient-glow-2"></div>
 
-    <!-- Ionization Filter Definitions -->
-    <svg style="position: absolute; width: 0; height: 0;">
-        <filter id="ionize">
-            <feTurbulence type="fractalNoise" baseFrequency="0.015" numOctaves="3" result="noise" />
-            <feDisplacementMap in="SourceGraphic" in2="noise" scale="40" />
-        </filter>
-    </svg>
-
-    <div class="grain-layer">
-        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-            <filter id="noise">
-                <feTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch" />
-            </filter>
-            <rect width="100%" height="100%" filter="url(#noise)" />
-        </svg>
-    </div>
-
-    <div class="haze-canvas" id="haze"></div>
-
-    <!-- Navigation -->
-    <nav class="fixed top-0 w-full z-[200] px-10 py-8 flex justify-between items-center mix-blend-difference">
-        <div class="flex items-center gap-6">
-            <div class="flex flex-col">
-                <span class="text-2xl font-black tracking-tighter">HEKTOR</span>
-                <span class="mono text-[8px] tracking-[0.5em] text-zinc-500 uppercase">Kinetic Engine v4.0</span>
-            </div>
-        </div>
-        <div class="hidden lg:flex gap-16 items-center">
-            <div class="flex items-center gap-3">
-                <div class="ion-indicator"></div>
-                <span class="mono text-[10px] tracking-widest uppercase opacity-60">System: Stable</span>
-            </div>
-            <a href="#" class="mono text-[10px] tracking-[0.3em] uppercase hover:text-cyan-400 transition-colors">Documentation</a>
-            <a href="#" class="mono text-[10px] tracking-[0.3em] uppercase hover:text-cyan-400 transition-colors">Vault</a>
-            <button class="px-5 py-2 border border-white/20 mono text-[10px] uppercase hover:bg-white hover:text-black transition-all">Node: 01-A</button>
-        </div>
+    <!-- NAVIGATION -->
+    <nav class="nav" role="navigation" aria-label="Main navigation">
+        <a href="#" class="nav-logo">HEKTOR<span>.</span></a>
+        <ul class="nav-links">
+            <li><a href="#performance">Performance</a></li>
+            <li><a href="#platform">Platform</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#signup">Signup</a></li>
+        </ul>
+        <a href="#signup" class="nav-cta">Get Started</a>
+        <button class="nav-mobile-btn" aria-label="Toggle menu" onclick="document.querySelector('.mobile-menu').classList.toggle('active')">☰</button>
     </nav>
 
-    <!-- Main Section -->
-    <main class="relative z-10">
-        <!-- Hero Section -->
-        <section class="min-h-screen flex flex-col justify-center px-10 lg:px-32">
-            <div class="max-w-6xl">
-                <div class="reveal">
-                    <h2 class="mono text-cyan-500 text-sm tracking-[0.8em] uppercase mb-8">Ionized Neural Processing</h2>
-                    <h1 class="text-[clamp(3.5rem,15vw,12rem)] font-extrabold leading-[0.8] tracking-tighter italic mb-12">
-                        <span class="text-ion" data-text="KINETIC">KINETIC</span><br/>
-                        <span class="text-white opacity-90">VECTOR</span>
-                    </h1>
-                </div>
+    <div class="mobile-menu" id="mobileMenu">
+        <a href="#performance" onclick="document.querySelector('.mobile-menu').classList.remove('active')">Performance</a>
+        <a href="#platform" onclick="document.querySelector('.mobile-menu').classList.remove('active')">Platform</a>
+        <a href="#use-cases" onclick="document.querySelector('.mobile-menu').classList.remove('active')">Use Cases</a>
+        <a href="#pricing" onclick="document.querySelector('.mobile-menu').classList.remove('active')">Pricing</a>
+        <a href="#signup" onclick="document.querySelector('.mobile-menu').classList.remove('active')">Signup</a>
+    </div>
 
-                <div class="flex flex-col lg:flex-row items-end gap-16 reveal" style="transition-delay: 200ms;">
-                    <p class="max-w-xl text-zinc-400 text-xl font-light leading-relaxed">
-                        Deploying sub-atomic latency for multi-dimensional search. Hektor utilizes <span class="text-white italic font-medium">ionized flux architecture</span> to retrieve embeddings across distributed clusters in &lt;1ms.
-                    </p>
-                    <div class="flex gap-4">
-                        <button class="ion-btn">
-                            <span class="beam"></span>
-                            Initialize Flux
-                        </button>
-                    </div>
-                </div>
+    <!-- HERO -->
+    <section class="hero" id="hero">
+        <div class="hero-badge">Production Vector Infrastructure</div>
+        <h1>Vector Search Built for<br><span class="accent">Real AI Workloads</span></h1>
+        <p class="subtitle">Build faster retrieval systems with open-source infrastructure you can control. HEKTOR delivers SIMD-optimized vector search, hybrid retrieval, and local embeddings — with a practical path from single-node deployments to billion-scale architectures.</p>
+        <div class="hero-actions">
+            <a href="#pricing" class="btn-primary">Explore Pricing</a>
+            <a href="#signup" class="btn-outline">Signup Request</a>
+        </div>
+        <div class="hero-metrics">
+            <div class="hero-metric">
+                <div class="metric-value" data-target="2.9" data-suffix="ms p99">0<span class="unit">ms</span> p99</div>
+                <div class="metric-label">Documented latency at 1M vectors for production retrieval workloads</div>
             </div>
-        </section>
-
-        <!-- Technical Interface Section -->
-        <section class="py-32 px-10 lg:px-32 relative">
-            <div class="grid grid-cols-1 lg:grid-cols-12 gap-20">
-                
-                <!-- Left: Metrics & Indicators -->
-                <div class="lg:col-span-4 space-y-12">
-                    <div class="reveal">
-                        <div class="text-[10px] mono text-zinc-600 uppercase tracking-[0.4em] mb-6">Real-time Telemetry</div>
-                        <div class="space-y-10">
-                            <div class="group">
-                                <div class="flex justify-between items-end mb-2">
-                                    <span class="mono text-xs text-zinc-400 uppercase">Ion Pressure</span>
-                                    <span class="text-2xl font-bold text-cyan-400">0.992</span>
-                                </div>
-                                <div class="h-px w-full bg-zinc-800 relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-gradient-to-r from-cyan-500 to-violet-500 w-[92%] transition-all duration-1000"></div>
-                                </div>
-                            </div>
-                            <div class="group">
-                                <div class="flex justify-between items-end mb-2">
-                                    <span class="mono text-xs text-zinc-400 uppercase">Spectral Decay</span>
-                                    <span class="text-2xl font-bold text-violet-400">1.04ms</span>
-                                </div>
-                                <div class="h-px w-full bg-zinc-800 relative overflow-hidden">
-                                    <div class="absolute inset-0 bg-gradient-to-r from-violet-500 to-transparent w-[40%] transition-all duration-1000"></div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="reveal kinetic-shell p-8" style="transition-delay: 300ms;">
-                        <h4 class="text-lg font-bold mb-4 italic">Distributed Haze Clustering</h4>
-                        <p class="text-sm text-zinc-500 leading-relaxed mb-6 mono">
-                            Nodes automatically realign based on query proximity. No static shards. Pure kinetic movement.
-                        </p>
-                        <div class="flex gap-2">
-                            <div class="w-2 h-2 bg-white/20"></div>
-                            <div class="w-2 h-2 bg-white/20"></div>
-                            <div class="w-2 h-2 bg-cyan-500"></div>
-                            <div class="w-2 h-2 bg-white/20"></div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Right: Code Terminal -->
-                <div class="lg:col-span-8 reveal" style="transition-delay: 400ms;">
-                    <div class="relative group">
-                        <!-- Decorative Frame -->
-                        <div class="absolute -inset-4 bg-gradient-to-br from-cyan-500/10 to-violet-500/10 rounded-2xl blur-2xl group-hover:opacity-100 opacity-0 transition-opacity duration-700"></div>
-                        
-                        <div class="relative bg-zinc-950/80 border border-white/5 backdrop-blur-3xl overflow-hidden p-8 lg:p-12">
-                            <div class="flex justify-between items-center mb-12 border-b border-white/5 pb-6">
-                                <div class="flex gap-2">
-                                    <div class="w-2 h-2 rounded-full bg-red-500/20"></div>
-                                    <div class="w-2 h-2 rounded-full bg-amber-500/20"></div>
-                                    <div class="w-2 h-2 rounded-full bg-green-500/20"></div>
-                                </div>
-                                <span class="mono text-[10px] tracking-widest text-zinc-500 uppercase">spectral_node_active</span>
-                            </div>
-
-                            <div class="mono text-sm lg:text-base leading-relaxed data-stream h-[300px] overflow-hidden">
-                                <div class="text-zinc-600 mb-2"># Establishing Ionized Link...</div>
-                                <div class="text-zinc-300">>> <span class="text-cyan-400">connect</span>(spectral_id="hkt-9981-flux")</div>
-                                <div class="text-zinc-600 mb-2"># OK. Link integrity: 99.8%</div>
-                                <div class="text-zinc-300">>> <span class="text-violet-400">vector_search</span>(</div>
-                                <div class="text-zinc-300 pl-8">input=neural_tensor,</div>
-                                <div class="text-zinc-300 pl-8">mode=<span class="text-orange-300">"IONIZED_HAZE"</span>,</div>
-                                <div class="text-zinc-300 pl-8">top_k=256</div>
-                                <div class="text-zinc-300">)</div>
-                                <div class="text-zinc-600 mt-4 mb-2"># Calculating kinetic distances...</div>
-                                <div class="text-emerald-400">>> Results returned in 0.04ms</div>
-                                <div class="text-zinc-300">>> { "matches": 12.4M, "conf": 0.9992 }</div>
-                                <div class="text-zinc-600 animate-pulse mt-4">_</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
+            <div class="hero-metric">
+                <div class="metric-value" data-target="96.8" data-suffix="to 98.1%">96.8<span class="unit">–98.1%</span> recall</div>
+                <div class="metric-label">Benchmark retrieval quality for large-scale semantic search and multimodal systems</div>
             </div>
-        </section>
-
-        <!-- Footer / Call to Action -->
-        <section class="py-48 px-10 text-center relative">
-            <div class="reveal">
-                <h3 class="text-5xl lg:text-8xl font-black italic tracking-tighter mb-12">
-                    RESONATE <span class="text-ion" data-text="DEEPER">DEEPER</span>.
-                </h3>
-                <div class="flex flex-col md:flex-row justify-center items-center gap-8">
-                    <button class="ion-btn text-sm">Deploy Cluster</button>
-                    <span class="mono text-[10px] text-zinc-600 uppercase tracking-widest">or view benchmarks</span>
-                </div>
-            </div>
-        </section>
-    </main>
-
-    <footer class="py-12 px-10 border-t border-white/5 mix-blend-difference">
-        <div class="flex flex-col md:flex-row justify-between items-center gap-8">
-            <span class="mono text-[9px] tracking-[0.5em] text-zinc-500 uppercase">© 2024 HEKTOR SYSTEMS. IONIZED INFRASTRUCTURE.</span>
-            <div class="flex gap-10">
-                <a href="#" class="mono text-[9px] tracking-widest text-zinc-400 hover:text-white transition-colors">TERMINAL</a>
-                <a href="#" class="mono text-[9px] tracking-widest text-zinc-400 hover:text-white transition-colors">OS_STATUS</a>
-                <a href="#" class="mono text-[9px] tracking-widest text-zinc-400 hover:text-white transition-colors">ENCRYPT</a>
+            <div class="hero-metric">
+                <div class="metric-value" data-target="60" data-suffix="%">60<span class="unit">–80%</span> lower TCO</div>
+                <div class="metric-label">Modeled savings versus managed vector database alternatives for self-hosted operators</div>
             </div>
         </div>
+    </section>
+
+    <!-- PERFORMANCE LEADERSHIP -->
+    <section class="performance" id="performance">
+        <div class="section-header reveal">
+            <div class="section-tag">Performance Leadership</div>
+            <h2 class="section-title">2.9ms p99 Position</h2>
+            <p class="section-desc">HEKTOR is the low-latency route for production retrieval and recommendation workloads.</p>
+        </div>
+        <div class="performance-grid">
+            <div class="perf-card reveal reveal-delay-1">
+                <div class="perf-number">2.9<span class="highlight">ms</span></div>
+                <div class="perf-desc">p99 latency at 1M vectors for production retrieval workloads</div>
+                <div class="perf-source">Documented benchmark · Production-grade</div>
+            </div>
+            <div class="perf-card reveal reveal-delay-2">
+                <div class="perf-number">1B<span class="highlight">+</span></div>
+                <div class="perf-desc">Qualification motion escalates accounts from pilot to billion-scale architecture with the same core engine</div>
+                <div class="perf-source">Scale range · 1M to 1B+ vectors</div>
+            </div>
+            <div class="perf-card reveal reveal-delay-3">
+                <div class="perf-number">60–80<span class="highlight">%</span></div>
+                <div class="perf-desc">Lower TCO using support memberships and self-hosted savings as the primary commercial lever</div>
+                <div class="perf-source">Modeled savings · vs. managed alternatives</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CAPABILITIES -->
+    <section class="capabilities" id="platform">
+        <div class="section-header reveal">
+            <div class="section-tag">Why Teams Buy Hektor</div>
+            <h2 class="section-title">A Commercial Story Grounded in the Product</h2>
+            <p class="section-desc">Not inflated marketing copy. Just production capabilities that matter.</p>
+        </div>
+        <div class="cap-grid">
+            <div class="cap-card reveal">
+                <div class="cap-icon">
+                    <svg viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                </div>
+                <h3>Vector Search Built for Production Pressure</h3>
+                <p>Run SIMD-optimized similarity search, HNSW indexing, and hybrid retrieval in a stack built for real workloads instead of demo traffic.</p>
+            </div>
+            <div class="cap-card reveal reveal-delay-1">
+                <div class="cap-icon">
+                    <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                </div>
+                <h3>Local Embeddings Without API Dependency</h3>
+                <p>Generate text and image embeddings with ONNX Runtime locally to reduce latency, cut vendor exposure, and keep sensitive data under your control.</p>
+            </div>
+            <div class="cap-card reveal reveal-delay-2">
+                <div class="cap-icon">
+                    <svg viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8"/><path d="M12 17v4"/></svg>
+                </div>
+                <h3>Multimodal and RAG-Ready from Day One</h3>
+                <p>Support retrieval pipelines across text, image, document, and structured data workflows with BM25 fusion, chunking strategies, and framework adapters.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- PLATFORM DEPTH -->
+    <section class="platform-depth" id="depth">
+        <div class="section-header reveal">
+            <div class="section-tag">Platform Depth</div>
+            <h2 class="section-title">The Feature Surface Expected from Serious Vector Infrastructure</h2>
+        </div>
+        <div class="depth-grid reveal">
+            <div class="depth-group">
+                <h4>Core Platform</h4>
+                <div class="depth-item"><span class="check"></span>SIMD-optimized cosine and Euclidean search</div>
+                <div class="depth-item"><span class="check"></span>HNSW indexing for low-latency nearest-neighbor retrieval</div>
+                <div class="depth-item"><span class="check"></span>Memory-mapped storage for efficient large-scale workloads</div>
+                <div class="depth-item"><span class="check"></span>Rich metadata filtering and universal ingestion adapters</div>
+            </div>
+            <div class="depth-group">
+                <h4>AI Workflow Coverage</h4>
+                <div class="depth-item"><span class="check"></span>Hybrid search with BM25 and five fusion methods</div>
+                <div class="depth-item"><span class="check"></span>RAG engine with fixed, sentence, paragraph, semantic, and recursive chunking</div>
+                <div class="depth-item"><span class="check"></span>Local ONNX text and image embeddings</div>
+                <div class="depth-item"><span class="check"></span>Python bindings plus CLI and API integration surfaces</div>
+            </div>
+            <div class="depth-group">
+                <h4>Operational Readiness</h4>
+                <div class="depth-item"><span class="check"></span>Docker, Kubernetes, and bare-metal deployment options</div>
+                <div class="depth-item"><span class="check"></span>OpenTelemetry tracing, Prometheus metrics, and eBPF observability</div>
+                <div class="depth-item"><span class="check"></span>Distributed architecture with replication and sharding modes</div>
+                <div class="depth-item"><span class="check"></span>Support for migrations, architecture review, and incident response</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- TARGET SEGMENTS -->
+    <section class="segments">
+        <div class="section-header reveal">
+            <div class="section-tag">Target Segments</div>
+            <h2 class="section-title">Where HEKTOR Wins</h2>
+            <p class="section-desc">Three buyer profiles, three distinct value positions.</p>
+        </div>
+        <div class="segments-grid">
+            <div class="seg-card reveal">
+                <div class="seg-icon">01</div>
+                <h3>Performance-Critical Applications</h3>
+                <p>Real-time search, recommendation engines, and latency-sensitive AI systems.</p>
+                <div class="seg-lead">Lead with latency, throughput, and SIMD optimization.</div>
+            </div>
+            <div class="seg-card reveal reveal-delay-1">
+                <div class="seg-icon">02</div>
+                <h3>Cost-Conscious Enterprises</h3>
+                <p>Teams that want self-hosted vector infrastructure without enterprise license pressure.</p>
+                <div class="seg-lead">Lead with TCO savings, open-source core, and predictable support tiers.</div>
+            </div>
+            <div class="seg-card reveal reveal-delay-2">
+                <div class="seg-icon">03</div>
+                <h3>Innovation Leaders</h3>
+                <p>Research and multimodal teams exploring image, video, and perceptual quantization workflows.</p>
+                <div class="seg-lead">Lead with perceptual quantization, ONNX embeddings, and future cloud paths.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- DEPLOYMENT OPTIONS -->
+    <section class="deployment">
+        <div class="section-header reveal">
+            <div class="section-tag">Deployment Options</div>
+            <h2 class="section-title">Adopt HEKTOR on Your Terms</h2>
+        </div>
+        <div class="deployment-grid">
+            <div class="dep-card reveal">
+                <h3>Self-Hosted Core</h3>
+                <div class="dep-subtitle">Full infrastructure control · MIT license</div>
+                <p>For engineering teams that want no vendor lock-in.</p>
+                <span class="dep-pill">Community</span>
+                <span class="dep-pill">Basic</span>
+                <span class="dep-pill">Standard</span>
+                <div style="margin-top:1rem; font-family:var(--font-data); font-size:0.7rem; color:var(--text-muted);">Best paired with Community, Basic, or Standard memberships.</div>
+            </div>
+            <div class="dep-card reveal reveal-delay-1">
+                <h3>Hybrid Enterprise</h3>
+                <div class="dep-subtitle">On-prem + cloud · Regulated environments</div>
+                <p>For teams mixing on-prem and cloud environments with sovereignty, compliance, or incident SLA requirements.</p>
+                <span class="dep-pill">Enterprise Support</span>
+                <div style="margin-top:1rem; font-family:var(--font-data); font-size:0.7rem; color:var(--text-muted);">Use Enterprise Support when sovereignty, compliance, or incident SLAs are part of the motion.</div>
+            </div>
+            <div class="dep-card reveal reveal-delay-2">
+                <h3>Future Managed Cloud</h3>
+                <div class="dep-subtitle">Managed · No-ops delivery</div>
+                <p>For accounts that prefer a managed option once HEKTOR Cloud launches.</p>
+                <span class="dep-pill">Planned</span>
+                <span class="dep-pill">1M vectors</span>
+                <span class="dep-pill">10M vectors</span>
+                <span class="dep-pill">100M vectors</span>
+                <div style="margin-top:1rem; font-family:var(--font-data); font-size:0.7rem; color:var(--text-muted);">Capture demand now with projected cloud pricing.</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- OPERATIONAL USE CASES -->
+    <section class="use-cases" id="use-cases">
+        <div class="section-header reveal">
+            <div class="section-tag">Operational Use Cases</div>
+            <h2 class="section-title">Deployment Priorities Aligned to Buyer Intent</h2>
+        </div>
+        <div class="cases-grid">
+            <div class="case-item reveal">
+                <div class="case-num">01</div>
+                <div class="case-content">
+                    <h4>Production RAG Infrastructure</h4>
+                    <p>Route toward Standard or Premium support with migration assistance for enterprise-scale retrieval systems.</p>
+                    <div class="case-lead">→ Standard / Premium Support</div>
+                </div>
+            </div>
+            <div class="case-item reveal reveal-delay-1">
+                <div class="case-num">02</div>
+                <div class="case-content">
+                    <h4>Image and Multimodal Retrieval</h4>
+                    <p>Lead with perceptual quantization and billion-scale visual benchmark stories for visual AI systems.</p>
+                    <div class="case-lead">→ Perceptual Quantization · ONNX</div>
+                </div>
+            </div>
+            <div class="case-item reveal reveal-delay-2">
+                <div class="case-num">03</div>
+                <div class="case-content">
+                    <h4>Cost Optimization Migration</h4>
+                    <p>Anchor on 60–80% TCO reduction against managed vector databases for self-hosted operators.</p>
+                    <div class="case-lead">→ 60–80% TCO Savings</div>
+                </div>
+            </div>
+            <div class="case-item reveal reveal-delay-3">
+                <div class="case-num">04</div>
+                <div class="case-content">
+                    <h4>Internal Enterprise Search</h4>
+                    <p>Position self-hosted deployment and operational support memberships for internal knowledge systems.</p>
+                    <div class="case-lead">→ Self-Hosted + Support Memberships</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRICING -->
+    <section class="pricing-section" id="pricing">
+        <div class="section-header reveal">
+            <div class="section-tag">Pricing Structure</div>
+            <h2 class="section-title">Open-Source Core · Optional Support · Clear Path to Managed Service</h2>
+            <p class="section-desc">The core product is free under MIT. Commercial spend starts only when a team wants response SLAs, migration support, architecture review, or strategic partnership.</p>
+        </div>
+        <div class="pricing-grid">
+            <div class="pricing-card reveal">
+                <div class="pc-label">Developer-First</div>
+                <div class="pc-name">Community</div>
+                <div class="pc-free">Free · MIT License</div>
+                <ul class="pc-features">
+                    <li>Open-source core, no per-vector pricing</li>
+                    <li>No feature gates</li>
+                    <li>Unlimited scale for self-hosted teams</li>
+                    <li>Community documentation and guides</li>
+                    <li>No monthly platform fees</li>
+                </ul>
+                <a href="#signup" class="pc-btn outline">Get Started</a>
+            </div>
+            <div class="pricing-card reveal">
+                <div class="pc-label">Evaluation to Launch</div>
+                <div class="pc-name">Basic Support</div>
+                <div class="pc-price"><span class="pc-currency">$</span>5,000<span class="pc-period">/yr</span></div>
+                <ul class="pc-features">
+                    <li>Email support</li>
+                    <li>48-hour SLA</li>
+                    <li>Quarterly updates</li>
+                    <li>Community access</li>
+                </ul>
+                <a href="#signup" class="pc-btn outline">Get Started</a>
+            </div>
+            <div class="pricing-card featured reveal">
+                <div class="pc-label">Production Teams</div>
+                <div class="pc-name">Standard Support</div>
+                <div class="pc-price"><span class="pc-currency">$</span>15,000<span class="pc-period">/yr</span></div>
+                <ul class="pc-features">
+                    <li>Email and chat support</li>
+                    <li>24-hour SLA</li>
+                    <li>Monthly check-ins</li>
+                    <li>Migration assistance</li>
+                </ul>
+                <a href="#signup" class="pc-btn solid">Get Started</a>
+            </div>
+            <div class="pricing-card reveal">
+                <div class="pc-label">Mission-Critical Operations</div>
+                <div class="pc-name">Premium Support</div>
+                <div class="pc-price"><span class="pc-currency">$</span>50,000<span class="pc-period">/yr</span></div>
+                <ul class="pc-features">
+                    <li>24/7 support</li>
+                    <li>4-hour SLA</li>
+                    <li>Dedicated support engineer</li>
+                    <li>Architecture review and training</li>
+                </ul>
+                <a href="#signup" class="pc-btn outline">Get Started</a>
+            </div>
+            <div class="pricing-card reveal">
+                <div class="pc-label">Strategic Accounts</div>
+                <div class="pc-name">Enterprise Support</div>
+                <div class="pc-free">Custom annual contract</div>
+                <ul class="pc-features">
+                    <li>Named technical account manager</li>
+                    <li>1-hour critical issue SLA</li>
+                    <li>Custom SLA terms</li>
+                    <li>Strategic roadmap influence</li>
+                </ul>
+                <a href="#signup" class="pc-btn outline">Contact Sales</a>
+            </div>
+            <div class="pricing-card planned reveal">
+                <div class="pc-planned-badge">Planned · Hektor Cloud</div>
+                <div class="pc-label">Cloud · 1M Vectors</div>
+                <div class="pc-price"><span class="pc-currency">$</span>400<span class="pc-period">/mo</span></div>
+                <ul class="pc-features">
+                    <li>Projected managed-service tier</li>
+                    <li>HEKTOR without infrastructure ownership</li>
+                </ul>
+                <a href="#signup" class="pc-btn outline">Request Access</a>
+            </div>
+            <div class="pricing-card planned reveal">
+                <div class="pc-planned-badge">Planned · Hektor Cloud</div>
+                <div class="pc-label">Cloud · 10M Vectors</div>
+                <div class="pc-price"><span class="pc-currency">$</span>2,000<span class="pc-period">/mo</span></div>
+                <ul class="pc-features">
+                    <li>Projected mid-scale route</li>
+                    <li>Positioned 40–50% below comparable managed alternatives</li>
+                </ul>
+                <a href="#signup" class="pc-btn outline">Request Access</a>
+            </div>
+            <div class="pricing-card planned reveal">
+                <div class="pc-planned-badge">Planned · Hektor Cloud</div>
+                <div class="pc-label">Cloud · 100M Vectors</div>
+                <div class="pc-price"><span class="pc-currency">$</span>12,000<span class="pc-period">/mo</span></div>
+                <ul class="pc-features">
+                    <li>Projected large-scale managed motion</li>
+                    <li>Performance and no-ops delivery</li>
+                </ul>
+                <a href="#signup" class="pc-btn outline">Request Access</a>
+            </div>
+        </div>
+    </section>
+
+    <!-- SIGNUP -->
+    <section class="signup" id="signup">
+        <div class="section-header reveal">
+            <div class="section-tag">Signup</div>
+            <h2 class="section-title">Request Access and Support for Your HEKTOR Deployment</h2>
+            <p class="section-desc">Send your request to <strong style="color:var(--accent);">support@artifactvirtual.com</strong> and include your use case, deployment target, and expected scale.</p>
+        </div>
+        <div class="signup-container">
+            <div class="signup-info reveal">
+                <h3>Compose Your Signup Request</h3>
+                <p>Use one click to compose your signup request and send it to support@artifactvirtual.com. Include your use case, deployment target, and expected scale — and we'll respond with a tailored architecture recommendation.</p>
+                <a href="mailto:support@artifactvirtual.com" class="signup-email-link">
+                    Or email directly
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                </a>
+                <p class="signup-note" style="margin-top:2rem;">
+                    <strong>What to include:</strong> Your use case (RAG, search, recommendation), deployment target (self-hosted, hybrid, cloud), and expected scale (1M, 10M, 100M+ vectors). We'll match you to the right membership tier or managed-service path.
+                </p>
+            </div>
+            <form class="signup-form reveal reveal-delay-1" id="signupForm" onsubmit="return handleSignup(event)">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="fName">Full Name</label>
+                        <input type="text" id="fName" required placeholder="Jane Doe">
+                        <div class="form-error">Name is required</div>
+                    </div>
+                    <div class="form-group">
+                        <label for="fEmail">Email</label>
+                        <input type="email" id="fEmail" required placeholder="jane@company.com">
+                        <div class="form-error">Valid email is required</div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="fCompany">Company</label>
+                    <input type="text" id="fCompany" placeholder="Acme Corp">
+                </div>
+                <div class="form-group">
+                    <label for="fUseCase">Use Case</label>
+                    <select id="fUseCase">
+                        <option value="">Select a use case...</option>
+                        <option value="rag">Production RAG Infrastructure</option>
+                        <option value="search">Real-Time Search & Recommendation</option>
+                        <option value="multimodal">Image & Multimodal Retrieval</option>
+                        <option value="cost-optimization">Cost Optimization Migration</option>
+                        <option value="enterprise-search">Internal Enterprise Search</option>
+                        <option value="research">Research & Innovation</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fDeployment">Deployment Target</label>
+                    <select id="fDeployment">
+                        <option value="">Select deployment path...</option>
+                        <option value="self-hosted">Self-Hosted Core</option>
+                        <option value="hybrid">Hybrid Enterprise</option>
+                        <option value="cloud">Future Managed Cloud</option>
+                        <option value="undecided">Undecided</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fScale">Expected Scale</label>
+                    <select id="fScale">
+                        <option value="">Select scale...</option>
+                        <option value="1m">1M vectors (single-node entry)</option>
+                        <option value="10m">10M vectors (distributed)</option>
+                        <option value="100m">100M+ vectors (large-scale)</option>
+                        <option value="1b">1B+ vectors (billion-scale)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="fMessage">Additional Details</label>
+                    <textarea id="fMessage" placeholder="Describe your retrieval workload, latency requirements, or migration needs..."></textarea>
+                </div>
+                <button type="submit" class="btn-submit">Compose Signup Request</button>
+            </form>
+        </div>
+    </section>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="footer-brand">HEKTOR<span>.</span></div>
+        <ul class="footer-links">
+            <li><a href="#performance">Performance</a></li>
+            <li><a href="#platform">Platform</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#signup">Signup</a></li>
+        </ul>
+        <div class="footer-copy">© 2025 HEKTOR Platform · support@artifactvirtual.com</div>
     </footer>
 
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <!-- SVG FILTERS (hidden, reusable) -->
+    <svg style="position:absolute;width:0;height:0;" aria-hidden="true">
+        <defs>
+            <filter id="stoneGrain">
+                <feTurbulence type="fractalNoise" baseFrequency="0.9" numOctaves="4" seed="5" result="noise"/>
+                <feColorMatrix type="saturate" values="0" in="noise" result="grayNoise"/>
+                <feBlend in="SourceGraphic" in2="grayNoise" mode="multiply"/>
+            </filter>
+        </defs>
+    </svg>
+
     <script>
-        // Kinetic Mouse Movement for Haze
-        const haze = document.getElementById('haze');
-        document.addEventListener('mousemove', (e) => {
-            const x = (e.clientX / window.innerWidth) * 100;
-            const y = (e.clientY / window.innerHeight) * 100;
-            haze.style.setProperty('--mx', `${x}%`);
-            haze.style.setProperty('--my', `${y}%`);
-        });
+        // COUNTER ANIMATION FOR HERO METRICS
+        function animateCounter(el, target, suffix, duration = 1500) {
+            const start = 0;
+            const startTime = performance.now();
+            const isFloat = String(target).includes('.');
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = start + (target - start) * eased;
+                if (isFloat) {
+                    el.innerHTML = current.toFixed(1) + suffix;
+                } else {
+                    el.innerHTML = Math.floor(current) + suffix;
+                }
+                if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
 
-        // Reveal Observer
-        const observerOptions = {
-            threshold: 0.15,
-            rootMargin: '0px 0px -50px 0px'
-        };
+        // INITIALIZE METRIC ANIMATIONS
+        const heroMetrics = document.querySelectorAll('.hero-metric .metric-value');
+        const metricData = [
+            { target: 2.9, suffix: '<span class="unit">ms</span> p99', isFloat: true },
+            { target: 96.8, suffix: '<span class="unit">–98.1%</span> recall', isFloat: true },
+            { target: 60, suffix: '<span class="unit">–80%</span> lower TCO', isFloat: false }
+        ];
 
-        const observer = new IntersectionObserver((entries) => {
+        function initHeroMetrics() {
+            heroMetrics.forEach((el, i) => {
+                setTimeout(() => {
+                    el.innerHTML = '';
+                    animateCounter(el, metricData[i].target, metricData[i].suffix, 2000);
+                }, 400 + i * 200);
+            });
+        }
+
+        // SCROLL REVEAL with IntersectionObserver
+        const revealObserver = new IntersectionObserver((entries) => {
             entries.forEach(entry => {
                 if (entry.isIntersecting) {
-                    entry.target.classList.add('active');
+                    entry.target.classList.add('visible');
                 }
             });
-        }, observerOptions);
+        }, { threshold: 0.1, rootMargin: '0px 0px -50px 0px' });
 
-        document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
+        document.querySelectorAll('.reveal').forEach(el => revealObserver.observe(el));
+        document.querySelectorAll('.hero-metric').forEach(el => revealObserver.observe(el));
 
-        // Data Stream Simulation
-        const stream = document.querySelector('.data-stream');
-        setInterval(() => {
-            if (Math.random() > 0.7) {
-                const lines = stream.children;
-                if (lines.length > 20) stream.removeChild(lines[0]);
-                
-                const newLog = document.createElement('div');
-                newLog.className = 'text-zinc-700 text-xs mt-1 opacity-50';
-                newLog.innerText = `[${new Date().toISOString()}] FLUX_PULSE: 0x${Math.floor(Math.random()*16777215).toString(16)} verified`;
-                stream.appendChild(newLog);
-                stream.scrollTop = stream.scrollHeight;
+        // INIT METRICS ON LOAD
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                heroMetrics.forEach(el => el.classList.add('visible'));
+                initHeroMetrics();
+            }, 300);
+        });
+
+        // SMOOTH SCROLL FOR NAV LINKS
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function(e) {
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    e.preventDefault();
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+
+        // SIGNUP FORM HANDLER — Composes email
+        function handleSignup(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('fName').value.trim();
+            const email = document.getElementById('fEmail').value.trim();
+            const company = document.getElementById('fCompany').value.trim();
+            const useCase = document.getElementById('fUseCase');
+            const deployment = document.getElementById('fDeployment');
+            const scale = document.getElementById('fScale');
+            const message = document.getElementById('fMessage').value.trim();
+
+            // Validation
+            let valid = true;
+            if (!name) {
+                document.querySelector('#fName').nextElementSibling.style.display = 'block';
+                valid = false;
+            } else {
+                document.querySelector('#fName').nextElementSibling.style.display = 'none';
             }
-        }, 800);
+            if (!email || !email.includes('@')) {
+                document.querySelector('#fEmail').nextElementSibling.style.display = 'block';
+                valid = false;
+            } else {
+                document.querySelector('#fEmail').nextElementSibling.style.display = 'none';
+            }
+            if (!valid) return;
+
+            // Compose email body
+            const useCaseText = useCase.options[useCase.selectedIndex].text;
+            const deploymentText = deployment.options[deployment.selectedIndex].text;
+            const scaleText = scale.options[scale.selectedIndex].text;
+
+            const subject = 'HEKTOR Platform — Signup Request';
+            const body = encodeURIComponent(
+`HEKTOR Platform Signup Request
+===========================
+
+Name: ${name}
+Email: ${email}
+Company: ${company || 'Not specified'}
+
+Use Case: ${useCaseText}
+Deployment Target: ${deploymentText}
+Expected Scale: ${scaleText}
+
+Additional Details:
+${message || 'No additional details provided.'}
+
+---
+Generated from HEKTOR Platform pricing page`
+            );
+
+            // Open mailto
+            window.open(`mailto:support@artifactvirtual.com?subject=${encodeURIComponent(subject)}&body=${body}`);
+            
+            showToast('Mail client opened with your signup request ready to send.');
+        }
+
+        // TOAST NOTIFICATION
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 4000);
+        }
+
+        // NAV SCROLL EFFECT
+        let lastScroll = 0;
+        window.addEventListener('scroll', () => {
+            const nav = document.querySelector('.nav');
+            const currentScroll = window.pageYOffset;
+            if (currentScroll > 100) {
+                nav.style.borderBottomColor = 'rgba(36,48,68,0.8)';
+            } else {
+                nav.style.borderBottomColor = 'var(--border)';
+            }
+            lastScroll = currentScroll;
+        });
+
+        // PARALLAX AMBIENT GLOW
+        window.addEventListener('mousemove', (e) => {
+            const x = e.clientX / window.innerWidth;
+            const y = e.clientY / window.innerHeight;
+            const glow1 = document.querySelector('.ambient-glow-1');
+            const glow2 = document.querySelector('.ambient-glow-2');
+            if (glow1) {
+                glow1.style.transform = `translate(${x * 30}px, ${y * 30}px)`;
+            }
+            if (glow2) {
+                glow2.style.transform = `translate(${-x * 20}px, ${-y * 20}px)`;
+            }
+        });
+
+        // COUNTER ANIMATION FOR STATS ON SCROLL
+        const perfObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting && !entry.target.dataset.counted) {
+                    entry.target.dataset.counted = 'true';
+                    const numbers = entry.target.querySelectorAll('.perf-number');
+                    numbers.forEach(num => {
+                        const text = num.textContent;
+                        const targetMatch = text.match(/[\d,.]+/);
+                        if (!targetMatch) return;
+                        const targetVal = parseFloat(targetMatch[0].replace(',', ''));
+                        const suffix = text.replace(targetMatch[0], '');
+                        animateCounterOnElement(num, targetVal, suffix, 2000);
+                    });
+                }
+            });
+        }, { threshold: 0.5 });
+
+        function animateCounterOnElement(el, target, suffix, duration) {
+            const start = performance.now();
+            function update(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const current = target * eased;
+                el.innerHTML = (target % 1 !== 0 ? current.toFixed(1) : Math.floor(current)) + suffix;
+                if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        document.querySelectorAll('.perf-card').forEach(card => {
+            perfObserver.observe(card);
+        });
     </script>
 </body>
 </html>
