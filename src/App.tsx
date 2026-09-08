@@ -1,10 +1,7 @@
-import { useEffect, useMemo, useState } from 'react'
-import type { FormEvent } from 'react'
+import { useEffect } from 'react'
 import themeData from './data/theme.json'
 import pricingData from './data/pricing.json'
 import modelingData from './data/modeling.json'
-
-type SubmissionState = 'idle' | 'saving' | 'success' | 'error'
 
 interface ThemeData {
   name: string
@@ -58,50 +55,29 @@ interface ModelingData {
   }>
 }
 
-interface SignupRecord {
-  id: string
-  name: string
-  email: string
-  organization: string
-  role: string
-  planId: string
-  useCase: string
-  deploymentPreference: string
-  vectorScale: string
-  message: string
-  submittedAt: string
-}
-
-interface SignupFormState {
-  name: string
-  email: string
-  organization: string
-  role: string
-  planId: string
-  useCase: string
-  deploymentPreference: string
-  vectorScale: string
-  message: string
-}
-
 const theme = themeData as ThemeData
 const pricing = pricingData as PricingData
 const modeling = modelingData as ModelingData
 
-const membershipDatabaseName = 'hektor-memberships'
-const membershipStoreName = 'applications'
+const signupEmailHref = (() => {
+  const subject = 'Hektor signup request'
+  const body = [
+    'Hi Artifact Virtual team,',
+    '',
+    'I want to get started with HEKTOR.',
+    '',
+    'Company:',
+    'Role:',
+    'Primary use case:',
+    'Estimated vector scale:',
+    'Deployment preference:',
+    'Timeline:',
+    '',
+    'Please contact me with next steps.',
+  ].join('\n')
 
-const createInitialForm = (): SignupFormState => ({
-  name: '',
-  email: '',
-  organization: '',
-  role: '',
-  planId: pricing.plans[2]?.id ?? pricing.plans[0].id,
-  useCase: modeling.useCases[0]?.label ?? 'Production RAG infrastructure',
-  deploymentPreference: modeling.deploymentModels[0]?.name ?? 'Self-hosted core',
-  vectorScale: '10M vectors',
-  message: '',
-})
+  return `mailto:support@artifactvirtual.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+})()
 
 const featureHighlights = [
   {
@@ -179,71 +155,7 @@ const proofPoints = [
   },
 ]
 
-const openMembershipDatabase = () =>
-  new Promise<IDBDatabase>((resolve, reject) => {
-    const request = window.indexedDB.open(membershipDatabaseName, 1)
-
-    request.onupgradeneeded = () => {
-      const database = request.result
-
-      if (!database.objectStoreNames.contains(membershipStoreName)) {
-        const store = database.createObjectStore(membershipStoreName, { keyPath: 'id' })
-        store.createIndex('submittedAt', 'submittedAt', { unique: false })
-        store.createIndex('planId', 'planId', { unique: false })
-      }
-    }
-
-    request.onsuccess = () => resolve(request.result)
-    request.onerror = () => reject(request.error ?? new Error('Failed to open membership database'))
-  })
-
-const readMemberships = async () => {
-  const database = await openMembershipDatabase()
-
-  return new Promise<SignupRecord[]>((resolve, reject) => {
-    const transaction = database.transaction(membershipStoreName, 'readonly')
-    const store = transaction.objectStore(membershipStoreName)
-    const request = store.getAll()
-
-    request.onsuccess = () => {
-      const records = (request.result as SignupRecord[]).sort((left, right) =>
-        right.submittedAt.localeCompare(left.submittedAt),
-      )
-      resolve(records)
-    }
-
-    request.onerror = () => reject(request.error ?? new Error('Failed to load memberships'))
-    transaction.oncomplete = () => database.close()
-    transaction.onerror = () => reject(transaction.error ?? new Error('Membership read transaction failed'))
-  })
-}
-
-const storeMembership = async (record: SignupRecord) => {
-  const database = await openMembershipDatabase()
-
-  return new Promise<void>((resolve, reject) => {
-    const transaction = database.transaction(membershipStoreName, 'readwrite')
-    const store = transaction.objectStore(membershipStoreName)
-    const request = store.put(record)
-
-    request.onsuccess = () => undefined
-    request.onerror = () => reject(request.error ?? new Error('Failed to save membership'))
-    transaction.oncomplete = () => {
-      database.close()
-      resolve()
-    }
-    transaction.onerror = () => reject(transaction.error ?? new Error('Membership write transaction failed'))
-  })
-}
-
 function App() {
-  const [memberships, setMemberships] = useState<SignupRecord[]>([])
-  const [formState, setFormState] = useState<SignupFormState>(createInitialForm)
-  const [submissionState, setSubmissionState] = useState<SubmissionState>('idle')
-  const [databaseStatus, setDatabaseStatus] = useState('Loading built-in signup database…')
-
-  const plansById = useMemo(() => new Map(pricing.plans.map((plan) => [plan.id, plan])), [])
-
   useEffect(() => {
     const root = document.documentElement
     Object.entries(theme.colors).forEach(([token, value]) => {
@@ -262,98 +174,6 @@ function App() {
     return () => window.removeEventListener('mousemove', handlePointerMove)
   }, [])
 
-  useEffect(() => {
-    let isMounted = true
-
-    const loadMemberships = async () => {
-      try {
-        const records = await readMemberships()
-        if (!isMounted) {
-          return
-        }
-
-        setMemberships(records)
-        setDatabaseStatus(
-          records.length > 0
-            ? `Built-in signup database active · ${records.length} saved ${records.length === 1 ? 'application' : 'applications'}`
-            : 'Built-in signup database active · no applications yet',
-        )
-      } catch {
-        if (!isMounted) {
-          return
-        }
-
-        setDatabaseStatus('Built-in signup database unavailable in this browser session')
-      }
-    }
-
-    void loadMemberships()
-
-    return () => {
-      isMounted = false
-    }
-  }, [])
-
-  const membershipSummary = useMemo(() => {
-    const paidApplications = memberships.filter((membership) => {
-      const plan = plansById.get(membership.planId)
-      return (plan?.annualPriceUsd ?? 0) > 0
-    })
-
-    const annualPipeline = paidApplications.reduce((total, membership) => {
-      const plan = plansById.get(membership.planId)
-      return total + (plan?.annualPriceUsd ?? 0)
-    }, 0)
-
-    const enterpriseInterest = memberships.filter((membership) =>
-      ['enterprise-support', 'premium-support'].includes(membership.planId),
-    ).length
-
-    return {
-      total: memberships.length,
-      paidApplications: paidApplications.length,
-      annualPipeline,
-      enterpriseInterest,
-    }
-  }, [memberships, plansById])
-
-  const recentMemberships = memberships.slice(0, 4)
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault()
-    setSubmissionState('saving')
-
-    const record: SignupRecord = {
-      id: `membership-${Date.now()}`,
-      name: formState.name.trim(),
-      email: formState.email.trim(),
-      organization: formState.organization.trim(),
-      role: formState.role.trim(),
-      planId: formState.planId,
-      useCase: formState.useCase,
-      deploymentPreference: formState.deploymentPreference,
-      vectorScale: formState.vectorScale,
-      message: formState.message.trim(),
-      submittedAt: new Date().toISOString(),
-    }
-
-    try {
-      await storeMembership(record)
-      const records = [record, ...memberships].sort((left, right) =>
-        right.submittedAt.localeCompare(left.submittedAt),
-      )
-      setMemberships(records)
-      setFormState(createInitialForm())
-      setSubmissionState('success')
-      setDatabaseStatus(
-        `Built-in signup database active · ${records.length} saved ${records.length === 1 ? 'application' : 'applications'}`,
-      )
-    } catch {
-      setSubmissionState('error')
-      setDatabaseStatus('Built-in signup database unavailable in this browser session')
-    }
-  }
-
   return (
     <div className="app-shell">
       <div className="grain-layer" />
@@ -369,26 +189,25 @@ function App() {
           <a href="#platform">Platform</a>
           <a href="#use-cases">Use cases</a>
           <a href="#pricing">Pricing</a>
-          <a href="#signup">Memberships</a>
+          <a href="#signup">Signup</a>
         </nav>
       </header>
 
       <main className="page-layout">
         <section className="hero panel">
           <div className="hero-copy">
-            <p className="eyebrow">Built from the product docs, not a placeholder brief</p>
-            <h2>Production-grade vector search for teams that care about latency, control, and cost.</h2>
+            <p className="eyebrow">Production vector database for real AI workloads</p>
+            <h2>Build faster retrieval systems with open-source infrastructure you can control.</h2>
             <p className="hero-text">
-              HEKTOR is an open-source vector database engineered for performance-critical retrieval,
-              hybrid search, local embeddings, and billion-scale deployment paths. Start free,
-              self-host with full control, and add support only when your team needs it.
+              HEKTOR gives teams SIMD-optimized vector search, hybrid retrieval, local embeddings,
+              and a practical path from single-node deployments to billion-scale architectures.
             </p>
             <div className="hero-actions">
-              <a className="beam-button" href="#pricing">
-                Explore pricing
+              <a className="beam-button" href="#signup">
+                Start with Hektor
               </a>
-              <a className="ghost-button" href="#signup">
-                Apply for membership
+              <a className="ghost-button" href="#pricing">
+                Explore pricing
               </a>
             </div>
             <div className="hero-proof-strip">
@@ -418,16 +237,12 @@ function App() {
               </div>
             </div>
             <div className="database-card">
-              <p className="eyebrow">Membership system</p>
-              <h3>Built-in signup database</h3>
-              <p>
-                Membership applications are stored in the browser with IndexedDB so signups persist
-                between sessions without adding a third-party backend.
-              </p>
-              <div className="database-status">
-                <span className="status-dot" />
-                <strong>{databaseStatus}</strong>
-              </div>
+              <p className="eyebrow">Signup</p>
+              <h3>Talk to the Hektor team</h3>
+              <p>Use one click to compose your signup request and send it to support@artifactvirtual.com.</p>
+              <a className="beam-button" href={signupEmailHref}>
+                Email signup request
+              </a>
             </div>
           </aside>
         </section>
@@ -514,7 +329,7 @@ function App() {
           <article className="panel section-panel">
             <div className="section-heading">
               <p className="eyebrow">Operational use cases</p>
-              <h3>Membership routing aligned to actual buyer intent.</h3>
+              <h3>Deployment priorities aligned to buyer intent.</h3>
             </div>
             <div className="stack-list">
               {modeling.useCases.map((useCase) => (
@@ -573,195 +388,19 @@ function App() {
         <section className="signup-layout" id="signup">
           <article className="panel section-panel signup-panel">
             <div className="section-heading">
-              <p className="eyebrow">Membership signup</p>
-              <h3>Apply for the right Hektor support path.</h3>
+              <p className="eyebrow">Signup</p>
+              <h3>Request access and support for your Hektor deployment.</h3>
               <p>
-                Tell us what you are building, how much scale you expect, and which operating model
-                fits your team. Your submission is stored in the built-in membership database.
+                Send your request to support@artifactvirtual.com and include your use case,
+                deployment target, and expected scale.
               </p>
             </div>
-
-            <form className="signup-form" onSubmit={handleSubmit}>
-              <div className="form-grid">
-                <label>
-                  Full name
-                  <input
-                    required
-                    value={formState.name}
-                    onChange={(event) => setFormState((current) => ({ ...current, name: event.target.value }))}
-                    placeholder="Jordan Lee"
-                  />
-                </label>
-
-                <label>
-                  Work email
-                  <input
-                    required
-                    type="email"
-                    value={formState.email}
-                    onChange={(event) => setFormState((current) => ({ ...current, email: event.target.value }))}
-                    placeholder="jordan@company.com"
-                  />
-                </label>
-
-                <label>
-                  Organization
-                  <input
-                    required
-                    value={formState.organization}
-                    onChange={(event) =>
-                      setFormState((current) => ({ ...current, organization: event.target.value }))
-                    }
-                    placeholder="Northstar AI"
-                  />
-                </label>
-
-                <label>
-                  Role
-                  <input
-                    required
-                    value={formState.role}
-                    onChange={(event) => setFormState((current) => ({ ...current, role: event.target.value }))}
-                    placeholder="CTO, platform lead, staff engineer…"
-                  />
-                </label>
-
-                <label>
-                  Membership tier
-                  <select
-                    value={formState.planId}
-                    onChange={(event) => setFormState((current) => ({ ...current, planId: event.target.value }))}
-                  >
-                    {pricing.plans.map((plan) => (
-                      <option key={plan.id} value={plan.id}>
-                        {plan.name} · {plan.priceLabel} {plan.billing}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Primary use case
-                  <select
-                    value={formState.useCase}
-                    onChange={(event) => setFormState((current) => ({ ...current, useCase: event.target.value }))}
-                  >
-                    {modeling.useCases.map((useCase) => (
-                      <option key={useCase.label} value={useCase.label}>
-                        {useCase.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Deployment preference
-                  <select
-                    value={formState.deploymentPreference}
-                    onChange={(event) =>
-                      setFormState((current) => ({ ...current, deploymentPreference: event.target.value }))
-                    }
-                  >
-                    {modeling.deploymentModels.map((route) => (
-                      <option key={route.name} value={route.name}>
-                        {route.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label>
-                  Expected scale
-                  <select
-                    value={formState.vectorScale}
-                    onChange={(event) =>
-                      setFormState((current) => ({ ...current, vectorScale: event.target.value }))
-                    }
-                  >
-                    <option value="1M vectors">1M vectors</option>
-                    <option value="10M vectors">10M vectors</option>
-                    <option value="100M vectors">100M vectors</option>
-                    <option value="1B+ vectors">1B+ vectors</option>
-                  </select>
-                </label>
-              </div>
-
-              <label>
-                Project notes
-                <textarea
-                  rows={5}
-                  value={formState.message}
-                  onChange={(event) => setFormState((current) => ({ ...current, message: event.target.value }))}
-                  placeholder="Share workload type, compliance constraints, migration deadlines, or architecture questions."
-                />
-              </label>
-
-              <div className="form-actions">
-                <button className="beam-button" type="submit" disabled={submissionState === 'saving'}>
-                  {submissionState === 'saving' ? 'Saving application…' : 'Save membership application'}
-                </button>
-                <p className={`form-status form-status-${submissionState}`} role="status">
-                  {submissionState === 'success'
-                    ? 'Application saved to the built-in membership database.'
-                    : submissionState === 'error'
-                      ? 'Could not save the application in this browser session.'
-                      : 'Your application stays in the browser via IndexedDB until you clear site data.'}
-                </p>
-              </div>
-            </form>
+            <div className="form-actions">
+              <a className="beam-button" href={signupEmailHref}>
+                Compose signup email
+              </a>
+            </div>
           </article>
-
-          <aside className="panel section-panel signup-sidebar">
-            <div className="section-heading">
-              <p className="eyebrow">Pipeline snapshot</p>
-              <h3>What the local membership database is tracking.</h3>
-            </div>
-
-            <div className="pipeline-grid">
-              <div className="pipeline-card">
-                <span>Total applications</span>
-                <strong>{membershipSummary.total}</strong>
-              </div>
-              <div className="pipeline-card">
-                <span>Paid tier interest</span>
-                <strong>{membershipSummary.paidApplications}</strong>
-              </div>
-              <div className="pipeline-card">
-                <span>Premium or enterprise</span>
-                <strong>{membershipSummary.enterpriseInterest}</strong>
-              </div>
-              <div className="pipeline-card">
-                <span>Annual pipeline</span>
-                <strong>${membershipSummary.annualPipeline.toLocaleString()}</strong>
-              </div>
-            </div>
-
-            <div className="recent-list">
-              {recentMemberships.length > 0 ? (
-                recentMemberships.map((membership) => {
-                  const plan = plansById.get(membership.planId)
-
-                  return (
-                    <article className="recent-item" key={membership.id}>
-                      <div>
-                        <p className="stat-label">{plan?.name ?? membership.planId}</p>
-                        <h4>{membership.organization}</h4>
-                      </div>
-                      <p>{membership.useCase}</p>
-                      <small>
-                        {membership.name} · {membership.role} · {membership.vectorScale}
-                      </small>
-                    </article>
-                  )
-                })
-              ) : (
-                <div className="recent-item recent-item-empty">
-                  <h4>No saved applications yet</h4>
-                  <p>Use the form to create the first membership record in the built-in database.</p>
-                </div>
-              )}
-            </div>
-          </aside>
         </section>
       </main>
     </div>
