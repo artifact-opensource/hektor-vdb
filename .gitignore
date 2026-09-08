@@ -269,6 +269,8 @@ logs/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+node_modules/
+.vite/
 
 # Temporary files
 tmp/

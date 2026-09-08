@@ -1,0 +1,52 @@
+{
+  "records": [
+    {
+      "id": "SG-001",
+      "organization": "Aperture Retrieval",
+      "contact": "platform@aperture.dev",
+      "planId": "standard-support",
+      "stage": "Qualified",
+      "useCase": "Production RAG infrastructure",
+      "vectorScale": "10M",
+      "owner": "Field engineering",
+      "nextStep": "Size migration scope",
+      "priority": "High"
+    },
+    {
+      "id": "SG-002",
+      "organization": "Northstar Vision",
+      "contact": "vision@northstar.ai",
+      "planId": "premium-support",
+      "stage": "Active",
+      "useCase": "Image and multimodal retrieval",
+      "vectorScale": "100M",
+      "owner": "Support pod",
+      "nextStep": "Finalize HDR benchmark package",
+      "priority": "High"
+    },
+    {
+      "id": "SG-003",
+      "organization": "LedgerGrid",
+      "contact": "infra@ledgergrid.io",
+      "planId": "community",
+      "stage": "New Signup",
+      "useCase": "Cost optimization migration",
+      "vectorScale": "1M",
+      "owner": "Gateway queue",
+      "nextStep": "Share self-hosted onboarding",
+      "priority": "Standard"
+    },
+    {
+      "id": "SG-004",
+      "organization": "Atlas Compliance",
+      "contact": "cto@atlascompliance.com",
+      "planId": "enterprise-support",
+      "stage": "Renewal",
+      "useCase": "Internal enterprise search",
+      "vectorScale": "1B+",
+      "owner": "Strategic accounts",
+      "nextStep": "Review multi-region roadmap",
+      "priority": "Critical"
+    }
+  ]
+}

@@ -1,0 +1,71 @@
+{
+  "valueProposition": [
+    {
+      "label": "Performance leadership",
+      "value": "2.9ms p99",
+      "context": "Position Hektor as the low-latency route for production retrieval and recommendation workloads."
+    },
+    {
+      "label": "Scale proof",
+      "value": "1B+ vectors",
+      "context": "Qualification motion can escalate accounts from pilot to billion-scale architecture with the same core engine."
+    },
+    {
+      "label": "Cost model",
+      "value": "60-80% lower TCO",
+      "context": "Use support memberships and self-hosted savings as the primary commercial lever for sign-up conversion."
+    }
+  ],
+  "segments": [
+    {
+      "name": "Performance-critical applications",
+      "focus": "Real-time search, recommendation engines, and latency-sensitive AI systems.",
+      "trigger": "Lead with latency, throughput, and SIMD optimization."
+    },
+    {
+      "name": "Cost-conscious enterprises",
+      "focus": "Teams that want self-hosted vector infrastructure without enterprise license pressure.",
+      "trigger": "Lead with TCO savings, open-source core, and predictable support tiers."
+    },
+    {
+      "name": "Innovation leaders",
+      "focus": "Research and multimodal teams exploring image, video, and perceptual quantization workflows.",
+      "trigger": "Lead with perceptual quantization, ONNX embeddings, and future cloud paths."
+    }
+  ],
+  "deploymentModels": [
+    {
+      "name": "Self-hosted core",
+      "fit": "For engineering teams that want full infrastructure control and no vendor lock-in.",
+      "notes": "Best paired with Community, Basic, or Standard memberships."
+    },
+    {
+      "name": "Hybrid enterprise",
+      "fit": "For regulated or transitional teams mixing on-prem and cloud environments.",
+      "notes": "Use Enterprise Support when sovereignty, compliance, or incident SLAs are part of the motion."
+    },
+    {
+      "name": "Future managed cloud",
+      "fit": "For accounts that prefer a managed option once Hektor Cloud launches.",
+      "notes": "Capture demand now with projected 1M, 10M, and 100M cloud pricing."
+    }
+  ],
+  "useCases": [
+    {
+      "label": "Production RAG infrastructure",
+      "motion": "Route toward Standard or Premium support with migration assistance."
+    },
+    {
+      "label": "Image and multimodal retrieval",
+      "motion": "Lead with perceptual quantization and billion-scale visual benchmark stories."
+    },
+    {
+      "label": "Cost optimization migration",
+      "motion": "Anchor on 60-80% TCO reduction against managed vector databases."
+    },
+    {
+      "label": "Internal enterprise search",
+      "motion": "Position self-hosted deployment and operational support memberships."
+    }
+  ]
+}
