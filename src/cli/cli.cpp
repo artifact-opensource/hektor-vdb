@@ -140,73 +140,73 @@ int CLI::execute_command() {
 
 void CLI::register_commands() {
     // Database commands
-    auto db_init = std::shared_ptr<CommandBase>(new DbInitCommand());
+    auto db_init = std::make_shared<DbInitCommand>();
     commands_[db_init->name()] = db_init;
     aliases_["init"] = db_init->name();
     
-    auto db_info = std::shared_ptr<CommandBase>(new DbInfoCommand());
+    auto db_info = std::make_shared<DbInfoCommand>();
     commands_[db_info->name()] = db_info;
     aliases_["info"] = db_info->name();
     
-    auto db_optimize = std::shared_ptr<CommandBase>(new DbOptimizeCommand());
+    auto db_optimize = std::make_shared<DbOptimizeCommand>();
     commands_[db_optimize->name()] = db_optimize;
     aliases_["optimize"] = db_optimize->name();
     
-    auto db_backup = std::shared_ptr<CommandBase>(new DbBackupCommand());
+    auto db_backup = std::make_shared<DbBackupCommand>();
     commands_[db_backup->name()] = db_backup;
     aliases_["backup"] = db_backup->name();
     
-    auto db_restore = std::shared_ptr<CommandBase>(new DbRestoreCommand());
+    auto db_restore = std::make_shared<DbRestoreCommand>();
     commands_[db_restore->name()] = db_restore;
     aliases_["restore"] = db_restore->name();
     
-    auto db_health = std::shared_ptr<CommandBase>(new DbHealthCommand());
+    auto db_health = std::make_shared<DbHealthCommand>();
     commands_[db_health->name()] = db_health;
     aliases_["health"] = db_health->name();
     
-    auto db_list = std::shared_ptr<CommandBase>(new DbListCommand());
+    auto db_list = std::make_shared<DbListCommand>();
     commands_[db_list->name()] = db_list;
     for (const auto& alias : db_list->aliases()) {
         aliases_[alias] = db_list->name();
     }
     
     // Data commands
-    auto data_add = std::shared_ptr<CommandBase>(new DataAddCommand());
+    auto data_add = std::make_shared<DataAddCommand>();
     commands_[data_add->name()] = data_add;
     aliases_["add"] = data_add->name();
     
-    auto data_get = std::shared_ptr<CommandBase>(new DataGetCommand());
+    auto data_get = std::make_shared<DataGetCommand>();
     commands_[data_get->name()] = data_get;
     aliases_["get"] = data_get->name();
     
-    auto data_delete = std::shared_ptr<CommandBase>(new DataDeleteCommand());
+    auto data_delete = std::make_shared<DataDeleteCommand>();
     commands_[data_delete->name()] = data_delete;
     aliases_["delete"] = data_delete->name();
     aliases_["rm"] = data_delete->name();
     
-    auto data_update = std::shared_ptr<CommandBase>(new DataUpdateCommand());
+    auto data_update = std::make_shared<DataUpdateCommand>();
     commands_[data_update->name()] = data_update;
     aliases_["update"] = data_update->name();
     
-    auto data_batch = std::shared_ptr<CommandBase>(new DataBatchCommand());
+    auto data_batch = std::make_shared<DataBatchCommand>();
     commands_[data_batch->name()] = data_batch;
     aliases_["batch"] = data_batch->name();
     
-    auto data_list = std::shared_ptr<CommandBase>(new DataListCommand());
+    auto data_list = std::make_shared<DataListCommand>();
     commands_[data_list->name()] = data_list;
     for (const auto& alias : data_list->aliases()) {
         aliases_[alias] = data_list->name();
     }
     
     // Search command
-    auto search = std::shared_ptr<CommandBase>(new SearchCommand());
+    auto search = std::make_shared<SearchCommand>();
     commands_[search->name()] = search;
     for (const auto& alias : search->aliases()) {
         aliases_[alias] = search->name();
     }
     
     // Hybrid search commands
-    auto hybrid_search = std::shared_ptr<CommandBase>(new HybridSearchCommand());
+    auto hybrid_search = std::make_shared<HybridSearchCommand>();
     commands_[hybrid_search->name()] = hybrid_search;
     for (const auto& alias : hybrid_search->aliases()) {
         aliases_[alias] = hybrid_search->name();
@@ -216,49 +216,49 @@ void CLI::register_commands() {
     commands_[hybrid_bm25->name()] = hybrid_bm25;
     
     // Ingestion commands
-    auto ingest = std::shared_ptr<CommandBase>(new IngestCommand());
+    auto ingest = std::make_shared<IngestCommand>();
     commands_[ingest->name()] = ingest;
     
-    auto ingest_scan = std::shared_ptr<CommandBase>(new IngestScanCommand());
+    auto ingest_scan = std::make_shared<IngestScanCommand>();
     commands_[ingest_scan->name()] = ingest_scan;
     
     // Index commands
-    auto index_build = std::shared_ptr<CommandBase>(new IndexBuildCommand());
+    auto index_build = std::make_shared<IndexBuildCommand>();
     commands_[index_build->name()] = index_build;
     
-    auto index_optimize = std::shared_ptr<CommandBase>(new IndexOptimizeCommand());
+    auto index_optimize = std::make_shared<IndexOptimizeCommand>();
     commands_[index_optimize->name()] = index_optimize;
     
-    auto index_stats = std::shared_ptr<CommandBase>(new IndexStatsCommand());
+    auto index_stats = std::make_shared<IndexStatsCommand>();
     commands_[index_stats->name()] = index_stats;
     
-    auto index_benchmark = std::shared_ptr<CommandBase>(new IndexBenchmarkCommand());
+    auto index_benchmark = std::make_shared<IndexBenchmarkCommand>();
     commands_[index_benchmark->name()] = index_benchmark;
     
     // Collection commands
-    auto col_create = std::shared_ptr<CommandBase>(new CollectionCreateCommand());
+    auto col_create = std::make_shared<CollectionCreateCommand>();
     commands_[col_create->name()] = col_create;
     
-    auto col_list = std::shared_ptr<CommandBase>(new CollectionListCommand());
+    auto col_list = std::make_shared<CollectionListCommand>();
     commands_[col_list->name()] = col_list;
     for (const auto& alias : col_list->aliases()) {
         aliases_[alias] = col_list->name();
     }
     
-    auto col_delete = std::shared_ptr<CommandBase>(new CollectionDeleteCommand());
+    auto col_delete = std::make_shared<CollectionDeleteCommand>();
     commands_[col_delete->name()] = col_delete;
     
-    auto col_info = std::shared_ptr<CommandBase>(new CollectionInfoCommand());
+    auto col_info = std::make_shared<CollectionInfoCommand>();
     commands_[col_info->name()] = col_info;
     
     // Export commands
-    auto export_data = std::shared_ptr<CommandBase>(new ExportDataCommand());
+    auto export_data = std::make_shared<ExportDataCommand>();
     commands_[export_data->name()] = export_data;
     
-    auto export_pairs = std::shared_ptr<CommandBase>(new ExportPairsCommand());
+    auto export_pairs = std::make_shared<ExportPairsCommand>();
     commands_[export_pairs->name()] = export_pairs;
     
-    auto export_triplets = std::shared_ptr<CommandBase>(new ExportTripletsCommand());
+    auto export_triplets = std::make_shared<ExportTripletsCommand>();
     commands_[export_triplets->name()] = export_triplets;
 }
 

@@ -20,7 +20,7 @@ category: "Observability"
 ### Option 1: Build without OpenTelemetry (Fallback Mode)
 
 ```bash
-cd /home/runner/work/hektor/hektor
+cd /path/to/hektor-vdb
 mkdir build && cd build
 cmake .. -DVDB_USE_OPENTELEMETRY=OFF
 cmake --build . --config Release
@@ -81,7 +81,7 @@ sudo make install
 #### Step 2: Build Vector Studio with OpenTelemetry
 
 ```bash
-cd /home/runner/work/hektor/hektor
+cd /path/to/hektor-vdb
 mkdir build && cd build
 
 cmake .. \

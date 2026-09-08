@@ -161,13 +161,19 @@ curl -H "Authorization: Bearer $TOKEN" \
 |----------|---------|-------------|
 | `VDB_PATH` | `./data/vectors` | Database storage path |
 | `SECRET_KEY` | **Required** | JWT secret key |
+| `STRICT_SECURITY` | `true` | Enforce required secure configuration |
+| `API_ADMIN_USERNAME` | **Required** | Bootstrap admin username |
+| `API_ADMIN_PASSWORD` | **Required** | Bootstrap admin password |
 | `ACCESS_TOKEN_EXPIRE_MINUTES` | `60` | Token expiration time |
 | `HOST` | `0.0.0.0` | Server host |
 | `PORT` | `8080` | Server port |
 | `WORKERS` | `4` | Number of workers |
 | `LOG_LEVEL` | `INFO` | Logging level |
+| `LOG_FILE_PATH` | `./logs/api.log` | Rotating log output path |
+| `LOG_MAX_BYTES` | `10485760` | Max bytes per log file |
+| `LOG_BACKUP_COUNT` | `5` | Number of rotated log files |
 | `DEBUG` | `false` | Debug mode |
-| `CORS_ORIGINS` | `*` | Allowed origins |
+| `CORS_ORIGINS` | **Required** | Comma-separated trusted origins (no `*`) |
 | `RATE_LIMIT_ENABLED` | `true` | Enable rate limiting |
 | `RATE_LIMIT_DEFAULT` | `100/minute` | Default rate limit |
 
@@ -179,6 +185,9 @@ VDB_PATH=/data/vectors
 
 # Security
 SECRET_KEY=your-very-secure-secret-key-min-32-chars
+STRICT_SECURITY=true
+API_ADMIN_USERNAME=admin
+API_ADMIN_PASSWORD=change-this-password
 ACCESS_TOKEN_EXPIRE_MINUTES=60
 
 # Server
@@ -187,6 +196,9 @@ PORT=8080
 WORKERS=4
 DEBUG=false
 LOG_LEVEL=INFO
+LOG_FILE_PATH=./logs/api.log
+LOG_MAX_BYTES=10485760
+LOG_BACKUP_COUNT=5
 
 # CORS
 CORS_ORIGINS=http://localhost:4200,https://app.example.com

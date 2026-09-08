@@ -28,10 +28,15 @@ except ImportError:
         
         # Find the .pyd/.so file in the package directory
         pkg_dir = os.path.dirname(__file__)
-        pyd_files = glob.glob(os.path.join(pkg_dir, "pyvdb*.pyd")) + glob.glob(os.path.join(pkg_dir, "pyvdb*.so"))
+        extension_files = glob.glob(os.path.join(pkg_dir, "pyvdb*.pyd")) + glob.glob(os.path.join(pkg_dir, "pyvdb*.so"))
+        extension_files = sorted(set(extension_files))
         
-        if pyd_files:
-            spec = importlib.util.spec_from_file_location("pyvdb", pyd_files[0])
+        if len(extension_files) == 1:
+            module_path = extension_files[0]
+            spec = importlib.util.spec_from_file_location("pyvdb", module_path)
+            if spec is None or spec.loader is None:
+                raise ImportError(f"Failed to create import spec for native extension: {module_path}")
+
             _native = importlib.util.module_from_spec(spec)
             spec.loader.exec_module(_native)
             
@@ -40,9 +45,14 @@ except ImportError:
                 if not name.startswith('_'):
                     globals()[name] = getattr(_native, name)
             _NATIVE_AVAILABLE = True
+        elif len(extension_files) > 1:
+            raise ImportError(
+                "Multiple native pyvdb extensions found; refusing ambiguous load: "
+                + ", ".join(os.path.basename(path) for path in extension_files)
+            )
         else:
             raise ImportError("No native extension found")
-    except ImportError as e:
+    except Exception as e:
         _IMPORT_ERROR = str(e)
 
 # Only warn if native extension is not available
