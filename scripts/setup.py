@@ -141,7 +141,8 @@ def check_requirements() -> dict:
     
     # Compiler - Check for Visual Studio using vswhere
     if platform.system() == 'Windows':
-        vswhere = r"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"
+        program_files_x86 = os.environ.get("ProgramFiles(x86)", r"C:\Program Files (x86)")
+        vswhere = os.path.join(program_files_x86, "Microsoft Visual Studio", "Installer", "vswhere.exe")
         if os.path.exists(vswhere):
             try:
                 result = subprocess.run([vswhere, '-latest', '-property', 'displayName'], 
@@ -154,7 +155,7 @@ def check_requirements() -> dict:
         
         # Also check Build Tools path
         if not requirements['compiler']['found']:
-            bt_path = r"C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools"
+            bt_path = os.path.join(program_files_x86, "Microsoft Visual Studio", "2022", "BuildTools")
             if os.path.exists(bt_path):
                 requirements['compiler']['found'] = True
                 requirements['compiler']['name'] = 'VS 2022 Build Tools'

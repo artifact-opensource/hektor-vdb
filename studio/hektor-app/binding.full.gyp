@@ -32,9 +32,7 @@
         "../../build/_deps/fmt-src/include",
         "../../build/_deps/ggml-src/include",
         "../../build/_deps/llama-src/include",
-        "../../build/_deps/onnxruntime-src/include",
-        "/usr/include/postgresql",
-        "/usr/local/include"
+        "../../build/_deps/onnxruntime-src/include"
       ],
       "libraries": [
         "<(module_root_dir)/../../build/libvdb_core.a",
@@ -66,8 +64,7 @@
             }
           },
           "include_dirs": [
-            "../../external/sqlite3",
-            "C:/vcpkg/installed/x64-windows/include"
+            "../../external/sqlite3"
           ],
           "libraries": [
             "../../build/Release/vdb_core.lib",
@@ -87,16 +84,9 @@
             ],
             "OTHER_LDFLAGS": [
               "-stdlib=libc++",
-              "-L/usr/local/lib",
-              "-L/opt/homebrew/lib",
               "-L../../build/src"
             ]
           },
-          "include_dirs": [
-            "/usr/local/include",
-            "/opt/homebrew/include",
-            "/opt/homebrew/opt/sqlite/include"
-          ],
           "libraries": [
             "-lvdb_core",
             "-lpthread",

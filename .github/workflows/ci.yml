@@ -41,22 +41,18 @@ jobs:
         sudo apt-get update && sudo apt-get install -y clang-format-18
         
     - name: Run Ruff (Python Linting)
-      run: ruff check scripts/ bindings/python/ --fix
-      continue-on-error: true
+      run: ruff check scripts/ bindings/python/
       
     - name: Run Black (Python Formatting)
       run: black --check scripts/ bindings/python/
-      continue-on-error: true
       
     - name: Check C++ Formatting
       run: |
-        find src include -name '*.cpp' -o -name '*.hpp' | \
+        find src include \( -name '*.cpp' -o -name '*.hpp' \) | \
           xargs clang-format-18 --dry-run --Werror
-      continue-on-error: true
       
     - name: Run MyPy (Type Checking)
       run: mypy scripts/ bindings/python/ --ignore-missing-imports
-      continue-on-error: true
 
   # Build and test matrix
   # NOTE: This project requires C++23 std::expected which needs:

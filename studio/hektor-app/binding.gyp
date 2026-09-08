@@ -80,10 +80,6 @@
               "-L../../build"
             ]
           },
-          "include_dirs": [
-            "/usr/local/include",
-            "/opt/homebrew/include"
-          ],
           "libraries": [
             "-L../../build",
             "-lvdb_core",
