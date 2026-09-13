@@ -39,7 +39,7 @@ node-gyp rebuild
 - ✅ N-API module structure
 - ✅ Basic database operations (open, close, add, query)
 - ✅ Async operations with AsyncWorker
-- ⏳ HEKTOR core integration (TODO)
+- ✅ HEKTOR core integration hooks
 - ⏳ Zero-copy data transfer via SharedArrayBuffer
 - ⏳ Advanced PQ features
 

@@ -15,6 +15,9 @@ try {
 contextBridge.exposeInMainWorld('electronAPI', {
   getAppVersion: () => ipcRenderer.invoke('get-app-version'),
   getTheme: (themeName: string) => ipcRenderer.invoke('get-theme', themeName),
+  getStudioConfig: () => ipcRenderer.invoke('get-studio-config'),
+  getSystemOverview: () => ipcRenderer.invoke('get-system-overview'),
+  getLocalDatabaseOverview: () => ipcRenderer.invoke('get-local-database-overview'),
   onThemeChanged: (callback: (theme: any) => void) => {
     ipcRenderer.on('theme-changed', (_, theme) => callback(theme));
   }

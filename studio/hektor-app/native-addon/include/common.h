@@ -6,6 +6,7 @@
 #include <optional>
 #include <memory>
 #include <functional>
+#include <type_traits>
 
 // Include HEKTOR core types directly instead of forward declarations
 // This ensures enum underlying types match
@@ -18,9 +19,13 @@ template<typename T>
 inline T UnwrapResult(const vdb::Result<T>& result, Napi::Env env) {
     if (!result.has_value()) {
         Napi::Error::New(env, result.error().message).ThrowAsJavaScriptException();
-        return T{}; // Never reached due to exception
+        if constexpr (std::is_default_constructible_v<T>) {
+            return T{};
+        } else {
+            std::terminate();
+        }
     }
-    return result.value();
+    return std::move(const_cast<vdb::Result<T>&>(result).value());
 }
 
 // Specialization for Result<void>

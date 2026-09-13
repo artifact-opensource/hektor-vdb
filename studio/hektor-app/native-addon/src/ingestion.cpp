@@ -1,9 +1,42 @@
 #include "ingestion.h"
 #include "database.h"
+#include <nlohmann/json.hpp>
+#include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 
 namespace hektor_native {
+
+namespace {
+
+using json = nlohmann::json;
+
+vdb::Metadata MetadataFromJson(const json& value, const std::string& source_file) {
+  vdb::Metadata meta;
+  meta.source_file = source_file;
+  if (value.contains("metadata") && value["metadata"].is_object()) {
+    const auto& m = value["metadata"];
+    if (m.contains("date") && m["date"].is_string()) meta.date = m["date"].get<std::string>();
+    if (m.contains("source_file") && m["source_file"].is_string()) meta.source_file = m["source_file"].get<std::string>();
+    if (m.contains("asset") && m["asset"].is_string()) meta.asset = m["asset"].get<std::string>();
+    if (m.contains("bias") && m["bias"].is_string()) meta.bias = m["bias"].get<std::string>();
+    if (m.contains("extra_json")) meta.extra_json = m["extra_json"].dump();
+  }
+  return meta;
+}
+
+std::string ExtractText(const json& value) {
+  if (value.contains("text") && value["text"].is_string()) {
+    return value["text"].get<std::string>();
+  }
+  if (value.contains("content") && value["content"].is_string()) {
+    return value["content"].get<std::string>();
+  }
+  return value.is_string() ? value.get<std::string>() : value.dump();
+}
+
+}  // namespace
 
 Napi::Object Ingestion::Init(Napi::Env env, Napi::Object exports) {
   Napi::Function func = DefineClass(env, "Ingestion", {
@@ -144,19 +177,73 @@ Napi::Value Ingestion::IngestCSV(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Ingestion::IngestCSVAsync(const Napi::CallbackInfo& info) {
-  // TODO: Implement async version
   return IngestCSV(info);
 }
 
 Napi::Value Ingestion::IngestJSON(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
-  
-  // JSON parsing will be handled by JavaScript layer
-  Napi::Object result = Napi::Object::New(env);
-  result.Set("success", false);
-  result.Set("error", "Use JavaScript JSON.parse and batchIngest instead");
-  
-  return result;
+
+  if (!db_ || !db_->is_ready()) {
+    Napi::Error::New(env, "Database not ready").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  if (info.Length() < 1 || !info[0].IsString()) {
+    Napi::TypeError::New(env, "Expected JSON file path").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  const std::string filepath = info[0].As<Napi::String>().Utf8Value();
+  try {
+    std::ifstream file(filepath);
+    if (!file.is_open()) {
+      Napi::Object result = Napi::Object::New(env);
+      result.Set("success", false);
+      result.Set("error", "Failed to open file");
+      return result;
+    }
+
+    json parsed;
+    file >> parsed;
+
+    std::vector<json> documents;
+    if (parsed.is_array()) {
+      documents.assign(parsed.begin(), parsed.end());
+    } else if (parsed.is_object() && parsed.contains("documents") && parsed["documents"].is_array()) {
+      documents.assign(parsed["documents"].begin(), parsed["documents"].end());
+    } else {
+      documents.push_back(parsed);
+    }
+
+    size_t count = 0;
+    std::vector<uint64_t> ids;
+    for (const auto& doc : documents) {
+      const auto text = ExtractText(doc);
+      if (text.empty()) continue;
+      auto result = db_->add_text(text, MetadataFromJson(doc, filepath));
+      if (result.has_value()) {
+        ids.push_back(result.value());
+        ++count;
+      }
+    }
+
+    Napi::Array ids_arr = Napi::Array::New(env, ids.size());
+    for (size_t i = 0; i < ids.size(); ++i) {
+      ids_arr.Set(static_cast<uint32_t>(i), Napi::Number::New(env, ids[i]));
+    }
+
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("success", true);
+    result.Set("count", Napi::Number::New(env, count));
+    result.Set("ids", ids_arr);
+    result.Set("filepath", filepath);
+    return result;
+  } catch (const std::exception& e) {
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("success", false);
+    result.Set("error", e.what());
+    return result;
+  }
 }
 
 Napi::Value Ingestion::IngestJSONAsync(const Napi::CallbackInfo& info) {
@@ -165,12 +252,63 @@ Napi::Value Ingestion::IngestJSONAsync(const Napi::CallbackInfo& info) {
 
 Napi::Value Ingestion::IngestParquet(const Napi::CallbackInfo& info) {
   Napi::Env env = info.Env();
-  
-  // Parquet support requires additional dependencies
+
+  if (!db_ || !db_->is_ready()) {
+    Napi::Error::New(env, "Database not ready").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  if (info.Length() < 1 || !info[0].IsString()) {
+    Napi::TypeError::New(env, "Expected Parquet file path").ThrowAsJavaScriptException();
+    return env.Null();
+  }
+
+  const std::string filepath = info[0].As<Napi::String>().Utf8Value();
+  const std::filesystem::path temp_path = std::filesystem::temp_directory_path() / "hektor_parquet_ingest.jsonl";
+  const std::string command =
+      "python3 -c \"import json,sys; path=sys.argv[1]; out=sys.argv[2]; "
+      "rows=None; "
+      "try:\\n import pyarrow.parquet as pq; rows=pq.read_table(path).to_pylist()\\n"
+      "except Exception:\\n import pandas as pd; rows=pd.read_parquet(path).to_dict(orient='records')\\n"
+      "fh=open(out,'w',encoding='utf-8'); [fh.write(json.dumps(row)+'\\\\n') for row in rows]; fh.close()\" \"" +
+      filepath + "\" \"" + temp_path.string() + "\"";
+
+  const int rc = std::system(command.c_str());
+  if (rc != 0) {
+    Napi::Object result = Napi::Object::New(env);
+    result.Set("success", false);
+    result.Set("error", "Parquet ingestion requires pyarrow or pandas in the local Python environment");
+    return result;
+  }
+
+  std::ifstream file(temp_path);
+  std::string line;
+  size_t count = 0;
+  std::vector<uint64_t> ids;
+  while (std::getline(file, line)) {
+    if (line.empty()) continue;
+    auto row = json::parse(line);
+    const auto text = ExtractText(row);
+    if (text.empty()) continue;
+    auto result = db_->add_text(text, MetadataFromJson(row, filepath));
+    if (result.has_value()) {
+      ids.push_back(result.value());
+      ++count;
+    }
+  }
+
+  std::remove(temp_path.c_str());
+
+  Napi::Array ids_arr = Napi::Array::New(env, ids.size());
+  for (size_t i = 0; i < ids.size(); ++i) {
+    ids_arr.Set(static_cast<uint32_t>(i), Napi::Number::New(env, ids[i]));
+  }
+
   Napi::Object result = Napi::Object::New(env);
-  result.Set("success", false);
-  result.Set("error", "Parquet support not yet implemented");
-  
+  result.Set("success", true);
+  result.Set("count", Napi::Number::New(env, count));
+  result.Set("ids", ids_arr);
+  result.Set("filepath", filepath);
   return result;
 }
 

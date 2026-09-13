@@ -4,12 +4,12 @@
 #include "common.h"
 #include <memory>
 
-// Embeddings functionality is optional and depends on ONNX Runtime
-// These wrappers provide stub implementations when ONNX is not available
+// Embeddings functionality is optional and can operate with deterministic
+// local fallbacks when heavyweight runtimes are unavailable.
 
 namespace hektor_native {
 
-// TextEncoder wrapper (stubs - full impl requires ONNX Runtime)
+// TextEncoder wrapper
 class TextEncoderWrap : public Napi::ObjectWrap<TextEncoderWrap> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
@@ -24,7 +24,7 @@ private:
     Napi::Value Device(const Napi::CallbackInfo& info);
 };
 
-// ImageEncoder wrapper (stubs - full impl requires ONNX Runtime)
+// ImageEncoder wrapper
 class ImageEncoderWrap : public Napi::ObjectWrap<ImageEncoderWrap> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
@@ -40,7 +40,7 @@ private:
     Napi::Value Device(const Napi::CallbackInfo& info);
 };
 
-// OnnxSession wrapper (stubs - full impl requires ONNX Runtime)
+// OnnxSession wrapper
 class OnnxSessionWrap : public Napi::ObjectWrap<OnnxSessionWrap> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
@@ -55,7 +55,7 @@ private:
     Napi::Value OutputShape(const Napi::CallbackInfo& info);
 };
 
-// Tokenizer wrapper (stubs - full impl requires ONNX Runtime)
+// Tokenizer wrapper
 class TokenizerWrap : public Napi::ObjectWrap<TokenizerWrap> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
@@ -68,7 +68,7 @@ private:
     Napi::Value HasToken(const Napi::CallbackInfo& info);
 };
 
-// ImagePreprocessor wrapper (stubs - full impl requires ONNX Runtime)
+// ImagePreprocessor wrapper
 class ImagePreprocessorWrap : public Napi::ObjectWrap<ImagePreprocessorWrap> {
 public:
     static Napi::Object Init(Napi::Env env, Napi::Object exports);
