@@ -187,6 +187,7 @@ class DatabaseManager:
         self.db: Optional[pyvdb.VectorDatabase] = None
         self._initialized = False
         self.collections: Dict[str, Dict[str, Any]] = {}
+        self.collections_path = Path(settings.DB_PATH) / "collections.json"
     
     def initialize(self):
         """Initialize the database connection"""
@@ -196,6 +197,7 @@ class DatabaseManager:
         try:
             logger.info(f"Initializing database at {settings.DB_PATH}")
             Path(settings.DB_PATH).mkdir(parents=True, exist_ok=True)
+            self._load_collections()
             
             # Create or open database
             self.db = pyvdb.create_gold_standard_db(settings.DB_PATH)
@@ -210,6 +212,63 @@ class DatabaseManager:
         except Exception as e:
             logger.error(f"Failed to initialize database: {e}")
             raise
+
+    def _load_collections(self) -> None:
+        """Load persisted collection metadata."""
+        if not self.collections_path.exists():
+            self.collections = {}
+            return
+
+        try:
+            payload = json.loads(self.collections_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(f"Failed to load collection registry: {e}")
+            self.collections = {}
+            return
+
+        if not isinstance(payload, list):
+            logger.warning("Collection registry is malformed; expected a list")
+            self.collections = {}
+            return
+
+        collections: Dict[str, Dict[str, Any]] = {}
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+
+            name = str(item.get("name", "")).strip()
+            if not name:
+                continue
+
+            collections[name] = {
+                "name": name,
+                "dimension": int(item.get("dimension", 0) or 0),
+                "metric": str(item.get("metric", "cosine")),
+                "document_count": int(item.get("document_count", 0) or 0),
+                "created_at": item.get("created_at"),
+                "document_ids": set(str(doc_id) for doc_id in item.get("document_ids", [])),
+            }
+            collections[name]["document_count"] = len(collections[name]["document_ids"])
+
+        self.collections = collections
+
+    def _save_collections(self) -> None:
+        """Persist collection metadata."""
+        payload = []
+        for collection in sorted(self.collections.values(), key=lambda c: c["name"]):
+            payload.append({
+                "name": collection["name"],
+                "dimension": collection["dimension"],
+                "metric": collection["metric"],
+                "document_count": len(collection["document_ids"]),
+                "created_at": collection["created_at"],
+                "document_ids": sorted(collection["document_ids"]),
+            })
+
+        self.collections_path.write_text(
+            json.dumps(payload, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
     
     def _update_metrics(self):
         """Update Prometheus metrics from database stats"""
@@ -240,6 +299,7 @@ class DatabaseManager:
             "document_ids": set(),
         }
         self.collections[name] = collection
+        self._save_collections()
         return collection
 
     def get_collection(self, name: str) -> Optional[Dict[str, Any]]:
@@ -269,6 +329,7 @@ class DatabaseManager:
             raise ValueError(f"Collection '{name}' not found")
         collection["document_ids"].add(vector_id)
         collection["document_count"] = len(collection["document_ids"])
+        self._save_collections()
 
     def delete_collection(self, name: str) -> None:
         """Delete a collection and remove tracked vectors."""
@@ -284,6 +345,7 @@ class DatabaseManager:
                 logger.warning(f"Failed to remove vector {vector_id} while deleting collection '{name}': {e}")
 
         del self.collections[name]
+        self._save_collections()
 
 db_manager = DatabaseManager()
 
@@ -424,6 +486,76 @@ def _metadata_to_response(metadata: Any) -> Dict[str, Any]:
         except json.JSONDecodeError:
             pass
     return response
+
+
+def _coerce_filter_values(actual: Any, expected: Any) -> tuple[Any, Any]:
+    if isinstance(actual, bool) or isinstance(expected, bool):
+        return actual, expected
+
+    if isinstance(actual, (int, float)) and isinstance(expected, str):
+        try:
+            return actual, float(expected)
+        except ValueError:
+            return actual, expected
+
+    if isinstance(expected, (int, float)) and isinstance(actual, str):
+        try:
+            return float(actual), expected
+        except ValueError:
+            return actual, expected
+
+    return actual, expected
+
+
+def _matches_field_condition(actual: Any, condition: Any) -> bool:
+    if isinstance(condition, dict):
+        for operator, expected in condition.items():
+            lhs, rhs = _coerce_filter_values(actual, expected)
+
+            if operator == "$eq" and lhs != rhs:
+                return False
+            if operator == "$ne" and lhs == rhs:
+                return False
+            if operator == "$gt" and not (lhs is not None and lhs > rhs):
+                return False
+            if operator == "$gte" and not (lhs is not None and lhs >= rhs):
+                return False
+            if operator == "$lt" and not (lhs is not None and lhs < rhs):
+                return False
+            if operator == "$lte" and not (lhs is not None and lhs <= rhs):
+                return False
+            if operator == "$in" and lhs not in expected:
+                return False
+            if operator == "$nin" and lhs in expected:
+                return False
+        return True
+
+    lhs, rhs = _coerce_filter_values(actual, condition)
+    return lhs == rhs
+
+
+def _matches_filters(metadata: Dict[str, Any], filters: Optional[Dict[str, Any]]) -> bool:
+    if not filters:
+        return True
+
+    for key, condition in filters.items():
+        if key == "$and":
+            if not isinstance(condition, list) or not all(_matches_filters(metadata, item) for item in condition):
+                return False
+            continue
+        if key == "$or":
+            if not isinstance(condition, list) or not any(_matches_filters(metadata, item) for item in condition):
+                return False
+            continue
+        if key == "$not":
+            if _matches_filters(metadata, condition if isinstance(condition, dict) else None):
+                return False
+            continue
+
+        if not _matches_field_condition(metadata.get(key), condition):
+            return False
+
+    return True
 
 # ============================================================================
 # Pydantic Models
@@ -816,7 +948,8 @@ async def search(
         if not db_manager.get_collection(collection_name):
             raise HTTPException(status_code=404, detail=f"Collection '{collection_name}' not found")
 
-        results = db.search(search_request.query, search_request.k * 5)
+        search_limit = search_request.k * (10 if search_request.filters else 5)
+        results = db.search(search_request.query, search_limit)
         
         db_operations.labels(operation="search", collection=collection_name).inc()
         
@@ -825,6 +958,8 @@ async def search(
         for r in results:
             metadata_dict = _metadata_to_response(getattr(r, "metadata", None))
             if metadata_dict.get("collection") != collection_name:
+                continue
+            if not _matches_filters(metadata_dict, search_request.filters):
                 continue
 
             search_results.append({
