@@ -170,22 +170,24 @@ cd hektor
 python verify-installation.py
 ```
 
-### Installation via pip (Easiest)
+### Install from PyPI (Quickest)
 
 ```bash
-# Install from source (requires CMake and C++ compiler)
+# Install published wheels from PyPI
 pip install hektor-vdb
 
 # Or install with ML dependencies
 pip install hektor-vdb[ml]
 ```
 
-**Requirements:**
+Published package: **[pypi.org/project/hektor-vdb](https://pypi.org/project/hektor-vdb/)**
+
+If a wheel is not available for your platform, `pip` will build from source and requires:
 - Python 3.10+
 - CMake 3.20+
 - C++23 compatible compiler (GCC 13+, Clang 16+, MSVC 2022 17.3+)
 
-### Automated Setup from Source
+### Build from Source
 
 **Windows PowerShell:**
 ```powershell
@@ -662,5 +664,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 <p align="center">
 <sub>Part of the <a href="../gold_standard/README.md">Gold Standard</a> precious metals intelligence system.</sub>
 </p>
-
 
