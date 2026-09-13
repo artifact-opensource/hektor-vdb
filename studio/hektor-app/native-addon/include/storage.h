@@ -4,16 +4,8 @@
 #include "common.h"
 #include <memory>
 
-// Forward declarations
-namespace vdb {
-    namespace storage {
-        class MemoryMappedFile;
-        class VectorStore;
-        class MetadataStore;
-        class SqliteStore;
-        class PgVectorStore;
-    }
-}
+#include "vdb/storage.hpp"
+#include "vdb/storage/sqlite_store.hpp"
 
 namespace hektor_native {
 
@@ -32,7 +24,7 @@ private:
     Napi::Value Resize(const Napi::CallbackInfo& info);
     Napi::Value Sync(const Napi::CallbackInfo& info);
     
-    std::unique_ptr<vdb::storage::MemoryMappedFile> mmap_;
+    std::unique_ptr<vdb::MemoryMappedFile> mmap_;
 };
 
 // VectorStore wrapper
@@ -54,7 +46,7 @@ private:
     Napi::Value Compact(const Napi::CallbackInfo& info);
     Napi::Value MemoryUsage(const Napi::CallbackInfo& info);
     
-    std::unique_ptr<vdb::storage::VectorStore> store_;
+    std::unique_ptr<vdb::VectorStore> store_;
 };
 
 // MetadataStore wrapper
@@ -76,7 +68,7 @@ private:
     Napi::Value Size(const Napi::CallbackInfo& info);
     Napi::Value Sync(const Napi::CallbackInfo& info);
     
-    std::unique_ptr<vdb::storage::MetadataStore> store_;
+    std::unique_ptr<vdb::MetadataStore> store_;
 };
 
 // SqliteStore wrapper
@@ -144,7 +136,7 @@ private:
     Napi::Value IsConnected(const Napi::CallbackInfo& info);
     Napi::Value Reconnect(const Napi::CallbackInfo& info);
     
-    std::unique_ptr<vdb::storage::PgVectorStore> store_;
+    void* store_ = nullptr;
 };
 
 } // namespace hektor_native

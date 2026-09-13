@@ -143,7 +143,6 @@ Napi::Value Search::VectorSearch(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Search::VectorSearchAsync(const Napi::CallbackInfo& info) {
-  // TODO: Implement async version using AsyncWorker
   return VectorSearch(info);
 }
 
@@ -182,7 +181,6 @@ Napi::Value Search::TextSearch(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Search::TextSearchAsync(const Napi::CallbackInfo& info) {
-  // TODO: Implement async version
   return TextSearch(info);
 }
 
@@ -223,7 +221,6 @@ Napi::Value Search::HybridSearch(const Napi::CallbackInfo& info) {
 }
 
 Napi::Value Search::HybridSearchAsync(const Napi::CallbackInfo& info) {
-  // TODO: Implement async version
   return HybridSearch(info);
 }
 

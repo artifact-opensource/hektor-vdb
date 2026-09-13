@@ -45,6 +45,18 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   OnnxSessionWrap::Init(env, exports);
   TokenizerWrap::Init(env, exports);
   ImagePreprocessorWrap::Init(env, exports);
+
+  // Storage adapters
+  MemoryMappedFileWrap::Init(env, exports);
+  VectorStoreWrap::Init(env, exports);
+  MetadataStoreWrap::Init(env, exports);
+  SqliteStoreWrap::Init(env, exports);
+  PgVectorStoreWrap::Init(env, exports);
+
+  // Index adapters
+  HnswIndexWrap::Init(env, exports);
+  FlatIndexWrap::Init(env, exports);
+  MetadataIndexWrap::Init(env, exports);
   
   // Hybrid search (BM25 + Vector fusion)
   BM25EngineWrap::Init(env, exports);
@@ -54,6 +66,26 @@ Napi::Object Init(Napi::Env env, Napi::Object exports) {
   
   // Utility functions
   Utils::Init(env, exports);
+
+  // RAG / framework integrations
+  RAGEngineWrap::Init(env, exports);
+  LLMEngineWrap::Init(env, exports);
+  LangChainAdapterWrap::Init(env, exports);
+  LlamaIndexAdapterWrap::Init(env, exports);
+  DocumentChunkerWrap::Init(env, exports);
+  RAGUtils::Init(env, exports);
+
+  TensorFlowEmbedderWrap::Init(env, exports);
+  PyTorchEmbedderWrap::Init(env, exports);
+
+  // Distributed and telemetry
+  ReplicationManagerWrap::Init(env, exports);
+  ShardingManagerWrap::Init(env, exports);
+  DistributedVectorDatabaseWrap::Init(env, exports);
+  TelemetrySpanWrap::Init(env, exports);
+  TelemetryMetrics::Init(env, exports);
+  TelemetryManager::Init(env, exports);
+  Logger::Init(env, exports);
   
   // Async operations (legacy compatibility)
   exports.Set("queryVectorsAsync", Napi::Function::New(env, AsyncOperations::QueryVectorsAsync));

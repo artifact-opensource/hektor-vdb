@@ -5,6 +5,7 @@
 #include "vdb/distance.hpp"
 
 #include <algorithm>
+#include <cctype>
 #include <filesystem>
 #include <optional>
 #include <unordered_map>
@@ -78,16 +79,18 @@ Napi::Object DocMetaToJS(Napi::Env env, const vdb::storage::DocumentMetadata& me
 
 vdb::storage::DocumentMetadata JSToDocMeta(Napi::Env env, const Napi::Object& obj) {
     vdb::storage::DocumentMetadata meta;
-    if (obj.Has("id")) meta.id = obj.Get("id").ToString();
-    if (obj.Has("source")) meta.source = obj.Get("source").ToString();
-    if (obj.Has("contentType")) meta.content_type = obj.Get("contentType").ToString();
-    if (obj.Has("title")) meta.title = obj.Get("title").ToString();
-    if (obj.Has("author")) meta.author = obj.Get("author").ToString();
-    if (obj.Has("date")) meta.date = obj.Get("date").ToString();
+    if (obj.Has("id")) meta.id = obj.Get("id").ToString().Utf8Value();
+    if (obj.Has("source")) meta.source = obj.Get("source").ToString().Utf8Value();
+    if (obj.Has("contentType")) meta.content_type = obj.Get("contentType").ToString().Utf8Value();
+    if (obj.Has("title")) meta.title = obj.Get("title").ToString().Utf8Value();
+    if (obj.Has("author")) meta.author = obj.Get("author").ToString().Utf8Value();
+    if (obj.Has("date")) meta.date = obj.Get("date").ToString().Utf8Value();
     if (obj.Has("customFields") && obj.Get("customFields").IsObject()) {
         Napi::Object custom = obj.Get("customFields").As<Napi::Object>();
-        for (auto key : custom.GetPropertyNames()) {
-            meta.custom_fields[key.ToString()] = custom.Get(key).ToString();
+        Napi::Array keys = custom.GetPropertyNames();
+        for (uint32_t i = 0; i < keys.Length(); ++i) {
+            Napi::Value key = keys.Get(i);
+            meta.custom_fields[key.ToString().Utf8Value()] = custom.Get(key).ToString().Utf8Value();
         }
     }
     meta.created_at = std::chrono::system_clock::now();
@@ -116,7 +119,7 @@ std::optional<vdb::DistanceMetric> ParseMetric(Napi::Env env, const Napi::Value&
         Napi::TypeError::New(env, "Expected metric string").ThrowAsJavaScriptException();
         return std::nullopt;
     }
-    std::string metric = value.ToString();
+    std::string metric = value.ToString().Utf8Value();
     std::transform(metric.begin(), metric.end(), metric.begin(), [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
     if (metric == "cosine") return vdb::DistanceMetric::Cosine;
     if (metric == "euclidean" || metric == "l2") return vdb::DistanceMetric::L2;
@@ -151,7 +154,7 @@ Napi::Value MemoryMappedFileWrap::OpenRead(const Napi::CallbackInfo& info) {
         Napi::TypeError::New(env, "Expected file path").ThrowAsJavaScriptException();
         return env.Undefined();
     }
-    return ResultToObject(env, mmap_->open_read(info[0].ToString()));
+    return ResultToObject(env, mmap_->open_read(info[0].ToString().Utf8Value()));
 }
 
 Napi::Value MemoryMappedFileWrap::OpenWrite(const Napi::CallbackInfo& info) {
@@ -161,7 +164,7 @@ Napi::Value MemoryMappedFileWrap::OpenWrite(const Napi::CallbackInfo& info) {
         return env.Undefined();
     }
     size_t initialSize = info.Length() > 1 && info[1].IsNumber() ? info[1].As<Napi::Number>().Uint32Value() : 0;
-    return ResultToObject(env, mmap_->open_write(info[0].ToString(), initialSize));
+    return ResultToObject(env, mmap_->open_write(info[0].ToString().Utf8Value(), initialSize));
 }
 
 Napi::Value MemoryMappedFileWrap::Close(const Napi::CallbackInfo& info) {
@@ -204,7 +207,7 @@ VectorStoreWrap::VectorStoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectW
     vdb::VectorStoreConfig config;
     if (info.Length() > 0 && info[0].IsObject()) {
         Napi::Object obj = info[0].As<Napi::Object>();
-        if (obj.Has("path")) config.path = obj.Get("path").ToString();
+        if (obj.Has("path")) config.path = obj.Get("path").ToString().Utf8Value();
         if (obj.Has("dimension")) config.dimension = obj.Get("dimension").As<Napi::Number>().Uint32Value();
         if (obj.Has("initialCapacity")) config.initial_capacity = obj.Get("initialCapacity").As<Napi::Number>().Uint32Value();
         if (obj.Has("memoryOnly")) config.memory_only = obj.Get("memoryOnly").As<Napi::Boolean>().Value();
@@ -272,7 +275,7 @@ Napi::Object MetadataStoreWrap::Init(Napi::Env env, Napi::Object exports) {
 }
 
 MetadataStoreWrap::MetadataStoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectWrap<MetadataStoreWrap>(info) {
-    fs::path path = info.Length() > 0 && info[0].IsString() ? fs::path(info[0].ToString()) : fs::path("metadata.jsonl");
+    fs::path path = info.Length() > 0 && info[0].IsString() ? fs::path(info[0].ToString().Utf8Value()) : fs::path("metadata.jsonl");
     store_ = std::make_unique<vdb::MetadataStore>(path);
 }
 
@@ -295,7 +298,7 @@ Napi::Value MetadataStoreWrap::All(const Napi::CallbackInfo& info) {
 
 Napi::Value MetadataStoreWrap::FindByDate(const Napi::CallbackInfo& info) {
     auto env = info.Env();
-    auto all = store_->find_by_date(info[0].ToString());
+    auto all = store_->find_by_date(info[0].ToString().Utf8Value());
     Napi::Array arr = Napi::Array::New(env, all.size());
     for (size_t i = 0; i < all.size(); ++i) arr.Set(static_cast<uint32_t>(i), MetadataToJS(env, all[i]));
     return arr;
@@ -311,7 +314,7 @@ Napi::Value MetadataStoreWrap::FindByType(const Napi::CallbackInfo& info) {
 
 Napi::Value MetadataStoreWrap::FindByAsset(const Napi::CallbackInfo& info) {
     auto env = info.Env();
-    auto all = store_->find_by_asset(info[0].ToString());
+    auto all = store_->find_by_asset(info[0].ToString().Utf8Value());
     Napi::Array arr = Napi::Array::New(env, all.size());
     for (size_t i = 0; i < all.size(); ++i) arr.Set(static_cast<uint32_t>(i), MetadataToJS(env, all[i]));
     return arr;
@@ -352,7 +355,7 @@ SqliteStoreWrap::SqliteStoreWrap(const Napi::CallbackInfo& info) : Napi::ObjectW
     vdb::storage::SqliteConfig config;
     if (info.Length() > 0 && info[0].IsObject()) {
         Napi::Object obj = info[0].As<Napi::Object>();
-        if (obj.Has("dbPath")) config.db_path = obj.Get("dbPath").ToString();
+        if (obj.Has("dbPath")) config.db_path = obj.Get("dbPath").ToString().Utf8Value();
         if (obj.Has("enableCache")) config.enable_cache = obj.Get("enableCache").As<Napi::Boolean>().Value();
         if (obj.Has("cacheSizeMb")) config.cache_size_mb = obj.Get("cacheSizeMb").As<Napi::Number>().Uint32Value();
         if (obj.Has("maxCacheEntries")) config.max_cache_entries = obj.Get("maxCacheEntries").As<Napi::Number>().Uint32Value();
@@ -367,12 +370,12 @@ Napi::Value SqliteStoreWrap::Close(const Napi::CallbackInfo& info) { store_->clo
 Napi::Value SqliteStoreWrap::StoreMetadata(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->store_metadata(JSToDocMeta(info.Env(), info[0].As<Napi::Object>()))); }
 Napi::Value SqliteStoreWrap::GetMetadata(const Napi::CallbackInfo& info) {
     auto env = info.Env();
-    auto result = store_->get_metadata(info[0].ToString());
+    auto result = store_->get_metadata(info[0].ToString().Utf8Value());
     if (!result) return env.Null();
     return DocMetaToJS(env, result.value());
 }
 Napi::Value SqliteStoreWrap::UpdateMetadata(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->update_metadata(JSToDocMeta(info.Env(), info[0].As<Napi::Object>()))); }
-Napi::Value SqliteStoreWrap::DeleteMetadata(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->delete_metadata(info[0].ToString())); }
+Napi::Value SqliteStoreWrap::DeleteMetadata(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->delete_metadata(info[0].ToString().Utf8Value())); }
 Napi::Value SqliteStoreWrap::ListMetadata(const Napi::CallbackInfo& info) {
     auto env = info.Env();
     size_t limit = info.Length() > 0 && info[0].IsNumber() ? info[0].As<Napi::Number>().Uint32Value() : 100;
@@ -383,26 +386,26 @@ Napi::Value SqliteStoreWrap::ListMetadata(const Napi::CallbackInfo& info) {
     for (size_t i = 0; i < result->size(); ++i) arr.Set(static_cast<uint32_t>(i), DocMetaToJS(env, (*result)[i]));
     return arr;
 }
-Napi::Value SqliteStoreWrap::CachePut(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->cache_put(info[0].ToString(), info[1].ToString())); }
+Napi::Value SqliteStoreWrap::CachePut(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->cache_put(info[0].ToString().Utf8Value(), info[1].ToString().Utf8Value())); }
 Napi::Value SqliteStoreWrap::CacheGet(const Napi::CallbackInfo& info) {
     auto env = info.Env();
-    auto result = store_->cache_get(info[0].ToString());
+    auto result = store_->cache_get(info[0].ToString().Utf8Value());
     return result ? Napi::String::New(env, result.value()) : env.Null();
 }
-Napi::Value SqliteStoreWrap::CacheDelete(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->cache_delete(info[0].ToString())); }
+Napi::Value SqliteStoreWrap::CacheDelete(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->cache_delete(info[0].ToString().Utf8Value())); }
 Napi::Value SqliteStoreWrap::CacheClear(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->cache_clear()); }
 Napi::Value SqliteStoreWrap::CacheSize(const Napi::CallbackInfo& info) {
     auto env = info.Env();
     auto result = store_->cache_size();
     return result ? Napi::Number::New(env, static_cast<double>(result.value())) : env.Null();
 }
-Napi::Value SqliteStoreWrap::ConfigSet(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->config_set(info[0].ToString(), info[1].ToString())); }
+Napi::Value SqliteStoreWrap::ConfigSet(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->config_set(info[0].ToString().Utf8Value(), info[1].ToString().Utf8Value())); }
 Napi::Value SqliteStoreWrap::ConfigGet(const Napi::CallbackInfo& info) {
     auto env = info.Env();
-    auto result = store_->config_get(info[0].ToString());
+    auto result = store_->config_get(info[0].ToString().Utf8Value());
     return result ? Napi::String::New(env, result.value()) : env.Null();
 }
-Napi::Value SqliteStoreWrap::ConfigDelete(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->config_delete(info[0].ToString())); }
+Napi::Value SqliteStoreWrap::ConfigDelete(const Napi::CallbackInfo& info) { return ResultToObject(info.Env(), store_->config_delete(info[0].ToString().Utf8Value())); }
 Napi::Value SqliteStoreWrap::ConfigList(const Napi::CallbackInfo& info) {
     auto env = info.Env();
     auto result = store_->config_list();
@@ -457,8 +460,8 @@ PgVectorStoreWrap::PgVectorStoreWrap(const Napi::CallbackInfo& info) : Napi::Obj
     PgState state;
     if (info.Length() > 0 && info[0].IsObject()) {
         Napi::Object cfg = info[0].As<Napi::Object>();
-        std::string host = cfg.Has("host") ? cfg.Get("host").ToString() : "localhost";
-        std::string db = cfg.Has("database") ? cfg.Get("database").ToString() : "vectordb";
+        std::string host = cfg.Has("host") ? cfg.Get("host").ToString().Utf8Value() : "localhost";
+        std::string db = cfg.Has("database") ? cfg.Get("database").ToString().Utf8Value() : "vectordb";
         uint16_t port = cfg.Has("port") ? cfg.Get("port").As<Napi::Number>().Uint32Value() : 5432;
         state.endpoint = host + ":" + std::to_string(port) + "/" + db;
     }
@@ -506,10 +509,17 @@ Napi::Value PgVectorStoreWrap::AddBatch(const Napi::CallbackInfo& info) {
     }
     Napi::Array items = info[0].As<Napi::Array>();
     Napi::Array ids = Napi::Array::New(env, items.Length());
+    auto& state = g_pg_states[this];
     for (uint32_t i = 0; i < items.Length(); ++i) {
         Napi::Object item = items.Get(i).As<Napi::Object>();
-        Napi::Value id = Add({env, info.This(), { item.Get("vector"), item.Has("metadata") ? item.Get("metadata") : env.Undefined() }});
-        ids.Set(i, id);
+        auto vec = ReadVector(env, item.Get("vector"));
+        if (!vec) return env.Undefined();
+        if (state.dimension == 0) state.dimension = static_cast<vdb::Dim>(vec->size());
+        PgRecord record{vdb::Vector(*vec), item.Has("metadata") && item.Get("metadata").IsObject() ? JSToMetadata(item.Get("metadata").As<Napi::Object>()) : vdb::Metadata{}};
+        auto id = state.next_id++;
+        record.metadata.id = id;
+        state.records.emplace(id, std::move(record));
+        ids.Set(i, Napi::Number::New(env, static_cast<double>(id)));
     }
     return ids;
 }

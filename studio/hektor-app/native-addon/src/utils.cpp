@@ -209,7 +209,7 @@ Napi::Value Utils::EuclideanDistance(const Napi::CallbackInfo& info) {
     auto a = TryVector(env, info[0], "first vector");
     auto b = TryVector(env, info[1], "second vector");
     if (!a || !b || !RequireSameSize(env, *a, *b)) return env.Undefined();
-    return Napi::Number::New(env, vdb::euclidean_distance(vdb::VectorView(*a), vdb::VectorView(*b)));
+    return Napi::Number::New(env, vdb::euclidean_distance(a->data(), b->data(), static_cast<vdb::Dim>(a->size())));
 }
 
 Napi::Value Utils::SquaredEuclidean(const Napi::CallbackInfo& info) {
@@ -408,7 +408,7 @@ Napi::Value Utils::DocumentTypeName(const Napi::CallbackInfo& info) {
     if (info.Length() < 1) return Napi::String::New(env, "unknown");
     if (info[0].IsString()) return info[0];
     if (!info[0].IsNumber()) return Napi::String::New(env, "unknown");
-    return DocumentTypeToNapi(static_cast<vdb::DocumentType>(info[0].As<Napi::Number>().Uint32Value()), env);
+    return Napi::String::New(env, std::string(vdb::document_type_name(static_cast<vdb::DocumentType>(info[0].As<Napi::Number>().Uint32Value()))));
 }
 
 Napi::Value Utils::DetectBestDevice(const Napi::CallbackInfo& info) {
