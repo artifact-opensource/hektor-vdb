@@ -1,246 +1,723 @@
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTheme } from './lib/theme-system';
 import VectorSpace3D from './components/3d/VectorSpace3D';
 import { PerceptualQuantizationPanel } from './components/quantization';
 
 type ViewMode = 'dashboard' | 'search' | 'ingest' | 'analytics' | '3d' | 'quantization';
 
+interface DemoVector {
+  id: string;
+  position: [number, number, number];
+  color: string;
+  distance: number;
+}
+
+interface LocalCollection {
+  name: string;
+  dimension: number;
+  metric: string;
+  documentCount: number;
+  createdAt: string | null;
+}
+
+interface LocalDatabaseOverview {
+  dbPath: string;
+  collections: LocalCollection[];
+  collectionCount: number;
+  trackedDocuments: number;
+  vectorsFileBytes: number;
+  indexFileBytes: number;
+  metadataFileBytes: number;
+  configFileBytes: number;
+  registryPresent: boolean;
+}
+
+interface SystemOverview {
+  hostname: string;
+  platform: string;
+  arch: string;
+  cpuModel: string;
+  cpuCores: number;
+  loadAverage: number[];
+  totalMemoryBytes: number;
+  freeMemoryBytes: number;
+  usedMemoryBytes: number;
+  uptimeSeconds: number;
+  appMemoryBytes: number;
+  nodeVersion: string;
+}
+
+interface StudioConfig {
+  apiBaseUrl: string;
+  dbPath: string;
+}
+
+interface HealthResponse {
+  status: string;
+  version: string;
+  database: string;
+  uptime_seconds: number;
+}
+
+interface StatsResponse {
+  total_vectors: number;
+  memory_usage_bytes: number;
+  index_size: number;
+  collections: number;
+}
+
+interface CollectionInfo {
+  name: string;
+  dimension: number;
+  metric: string;
+  document_count: number;
+  created_at?: string | null;
+}
+
+interface SearchResultItem {
+  id: string;
+  score: number;
+  content?: string | null;
+  metadata: Record<string, unknown>;
+}
+
+function formatBytes(bytes: number): string {
+  if (!bytes) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let value = bytes;
+  let unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex += 1;
+  }
+  return `${value.toFixed(value >= 10 || unitIndex === 0 ? 0 : 1)} ${units[unitIndex]}`;
+}
+
+function formatUptime(seconds: number): string {
+  const total = Math.max(0, Math.floor(seconds));
+  const days = Math.floor(total / 86400);
+  const hours = Math.floor((total % 86400) / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  if (days > 0) return `${days}d ${hours}h`;
+  if (hours > 0) return `${hours}h ${minutes}m`;
+  return `${minutes}m`;
+}
+
+function formatNativeStatusVersion(version: unknown): string {
+  if (typeof version === 'string') return version;
+  if (version && typeof version === 'object' && 'version' in version) {
+    return String((version as { version: unknown }).version);
+  }
+  return 'unknown';
+}
+
+function buildDemoVectors(count: number): DemoVector[] {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `vec_${index}`,
+    position: [
+      Math.sin(index * 0.47) * 2.5,
+      Math.cos(index * 0.29) * 2.2,
+      Math.sin(index * 0.13) * Math.cos(index * 0.41) * 2.8,
+    ],
+    color: `hsl(${(index * 137.5) % 360}, 70%, 60%)`,
+    distance: (index % 10) / 10,
+  }));
+}
+
 function App() {
   const { currentTheme, setTheme, availableThemes } = useTheme();
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
   const [nativeStatus, setNativeStatus] = useState('checking...');
-  const [demoVectors, setDemoVectors] = useState<any[]>([]);
-  const [dbStats, setDbStats] = useState({
-    vectors: 0,
-    collections: 0,
-    indexSize: 0,
-    memoryUsage: 0,
-    queriesPerSec: 0,
-    avgLatency: 0,
+  const [demoVectors, setDemoVectors] = useState<DemoVector[]>(() => buildDemoVectors(120));
+  const [config, setConfig] = useState<StudioConfig>({
+    apiBaseUrl: 'http://127.0.0.1:8080',
+    dbPath: '',
   });
+  const [systemOverview, setSystemOverview] = useState<SystemOverview | null>(null);
+  const [localDbOverview, setLocalDbOverview] = useState<LocalDatabaseOverview | null>(null);
+  const [apiHealth, setApiHealth] = useState<HealthResponse | null>(null);
+  const [apiStats, setApiStats] = useState<StatsResponse | null>(null);
+  const [collections, setCollections] = useState<CollectionInfo[]>([]);
+  const [overviewError, setOverviewError] = useState<string | null>(null);
+  const [apiUrl, setApiUrl] = useState('http://127.0.0.1:8080');
+  const [apiUsername, setApiUsername] = useState('');
+  const [apiPassword, setApiPassword] = useState('');
+  const [authToken, setAuthToken] = useState<string | null>(null);
+  const [apiStatusMessage, setApiStatusMessage] = useState('Checking local API...');
+  const [selectedCollection, setSelectedCollection] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchTopK, setSearchTopK] = useState(10);
+  const [searchFiltersText, setSearchFiltersText] = useState('');
+  const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
+  const [searchError, setSearchError] = useState<string | null>(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+
+  const visibleCollections = useMemo(() => {
+    if (collections.length > 0) {
+      return collections.map((collection) => ({
+        name: collection.name,
+        dimension: collection.dimension,
+        metric: collection.metric,
+        documentCount: collection.document_count,
+        createdAt: collection.created_at ?? null,
+      }));
+    }
+
+    return localDbOverview?.collections ?? [];
+  }, [collections, localDbOverview]);
+
+  const refreshLocalOverview = useCallback(async () => {
+    if (!window.electronAPI) return;
+
+    try {
+      const [nextConfig, system, localDb] = await Promise.all([
+        window.electronAPI.getStudioConfig(),
+        window.electronAPI.getSystemOverview(),
+        window.electronAPI.getLocalDatabaseOverview(),
+      ]);
+
+      setConfig(nextConfig);
+      setApiUrl(nextConfig.apiBaseUrl);
+      setSystemOverview(system);
+      setLocalDbOverview(localDb);
+      setDemoVectors(buildDemoVectors(Math.max(48, Math.min(localDb.trackedDocuments || 120, 240))));
+      setOverviewError(null);
+    } catch (error) {
+      setOverviewError(error instanceof Error ? error.message : 'Failed to load local overview');
+    }
+  }, []);
+
+  const refreshApiHealth = useCallback(async (baseUrl: string) => {
+    try {
+      const response = await fetch(`${baseUrl}/health`);
+      if (!response.ok) {
+        throw new Error(`Health check failed with status ${response.status}`);
+      }
+      const health = await response.json() as HealthResponse;
+      setApiHealth(health);
+      setApiStatusMessage(`Connected to API ${health.version} (${health.database})`);
+    } catch (error) {
+      setApiHealth(null);
+      setApiStats(null);
+      if (!authToken) {
+        setCollections([]);
+      }
+      setApiStatusMessage(error instanceof Error ? error.message : 'API unavailable');
+    }
+  }, [authToken]);
+
+  const refreshAuthorizedOverview = useCallback(async (baseUrl: string, token: string) => {
+    const authHeader = 'Bearer '.concat(token);
+    const headers = {
+      Authorization: authHeader,
+    };
+
+    const [statsResponse, collectionsResponse] = await Promise.all([
+      fetch(`${baseUrl}/stats`, { headers }),
+      fetch(`${baseUrl}/collections`, { headers }),
+    ]);
+
+    if (!statsResponse.ok) {
+      throw new Error(`Stats request failed with status ${statsResponse.status}`);
+    }
+    if (!collectionsResponse.ok) {
+      throw new Error(`Collections request failed with status ${collectionsResponse.status}`);
+    }
+
+    const nextStats = await statsResponse.json() as StatsResponse;
+    const nextCollections = await collectionsResponse.json() as CollectionInfo[];
+    setApiStats(nextStats);
+    setCollections(nextCollections);
+    setSelectedCollection((current) => current || nextCollections[0]?.name || '');
+  }, []);
+
+  const refreshOverview = useCallback(async () => {
+    await refreshLocalOverview();
+    await refreshApiHealth(apiUrl);
+    if (authToken) {
+      try {
+        await refreshAuthorizedOverview(apiUrl, authToken);
+      } catch (error) {
+        setApiStats(null);
+        setCollections([]);
+        setApiStatusMessage(error instanceof Error ? error.message : 'Authenticated requests failed');
+      }
+    }
+  }, [apiUrl, authToken, refreshApiHealth, refreshAuthorizedOverview, refreshLocalOverview]);
 
   useEffect(() => {
-    // Set default theme to midnight-purple-dark
     if (currentTheme.name === 'quantum-slate-dark') {
-      const midnightPurple = availableThemes.find(t => t.name === 'midnight-purple-dark');
+      const midnightPurple = availableThemes.find((theme) => theme.name === 'midnight-purple-dark');
       if (midnightPurple) {
         setTheme(midnightPurple.name);
       }
     }
-  }, []);
+  }, [availableThemes, currentTheme.name, setTheme]);
 
   useEffect(() => {
-    // Check native addon status
     if (window.hektorAPI) {
       const isAvailable = window.hektorAPI.isNativeAvailable();
       if (isAvailable) {
-        const version = window.hektorAPI.getVersion();
+        const version = formatNativeStatusVersion(window.hektorAPI.getVersion());
         setNativeStatus(`✅ Native C++ addon active (v${version})`);
-        // Simulate fetching stats
-        setDbStats({
-          vectors: 125847,
-          collections: 3,
-          indexSize: 512,
-          memoryUsage: 2048,
-          queriesPerSec: 1250,
-          avgLatency: 2.8,
-        });
       } else {
-        setNativeStatus('⚠️ Demo mode - C++ addon not compiled');
+        setNativeStatus('⚠️ Native addon not compiled');
       }
     } else {
-      setNativeStatus('⚠️ Demo mode - C++ addon not compiled');
+      setNativeStatus('⚠️ Native addon bridge unavailable');
     }
-    
-    // Generate demo vectors
-    const vectors = [];
-    for (let i = 0; i < 100; i++) {
-      vectors.push({
-        id: `vec_${i}`,
-        position: [
-          (Math.random() - 0.5) * 4,
-          (Math.random() - 0.5) * 4,
-          (Math.random() - 0.5) * 4
-        ] as [number, number, number],
-        color: `hsl(${(i * 137.5) % 360}, 70%, 60%)`,
-        distance: Math.random()
-      });
-    }
-    setDemoVectors(vectors);
   }, []);
+
+  useEffect(() => {
+    void refreshOverview();
+    const intervalId = window.setInterval(() => {
+      void refreshOverview();
+    }, 5000);
+
+    return () => window.clearInterval(intervalId);
+  }, [refreshOverview]);
+
+  const handleConnect = useCallback(async () => {
+    setIsConnecting(true);
+    setSearchError(null);
+
+    try {
+      const response = await fetch(`${apiUrl}/auth/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          username: apiUsername,
+          password: apiPassword,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Login failed with status ${response.status}`);
+      }
+
+      const payload = await response.json() as { access_token: string };
+      setAuthToken(payload.access_token);
+      setApiStatusMessage('Authenticated to local API');
+      await refreshAuthorizedOverview(apiUrl, payload.access_token);
+    } catch (error) {
+      setAuthToken(null);
+      setApiStats(null);
+      setCollections([]);
+      setSearchError(error instanceof Error ? error.message : 'Unable to authenticate');
+    } finally {
+      setIsConnecting(false);
+    }
+  }, [apiPassword, apiUrl, apiUsername, refreshAuthorizedOverview]);
+
+  const handleSearch = useCallback(async () => {
+    setSearchError(null);
+    setSearchResults([]);
+
+    if (!authToken) {
+      setSearchError('Connect to the API to run search queries.');
+      return;
+    }
+
+    if (!selectedCollection) {
+      setSearchError('Select a collection first.');
+      return;
+    }
+
+    let parsedFilters: Record<string, unknown> | undefined;
+    if (searchFiltersText.trim()) {
+      try {
+        parsedFilters = JSON.parse(searchFiltersText) as Record<string, unknown>;
+      } catch {
+        setSearchError('Filters must be valid JSON.');
+        return;
+      }
+    }
+
+    setIsSearching(true);
+    try {
+      const authHeader = 'Bearer '.concat(authToken);
+      const response = await fetch(`${apiUrl}/collections/${encodeURIComponent(selectedCollection)}/search`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: authHeader,
+        },
+        body: JSON.stringify({
+          query: searchQuery,
+          k: searchTopK,
+          filters: parsedFilters,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Search failed with status ${response.status}`);
+      }
+
+      const payload = await response.json() as SearchResultItem[];
+      setSearchResults(payload);
+    } catch (error) {
+      setSearchError(error instanceof Error ? error.message : 'Search failed');
+    } finally {
+      setIsSearching(false);
+    }
+  }, [apiUrl, authToken, searchFiltersText, searchQuery, searchTopK, selectedCollection]);
+
+  const dashboardCards = [
+    {
+      label: 'Collections',
+      value: (apiStats?.collections ?? localDbOverview?.collectionCount ?? 0).toLocaleString(),
+      detail: 'Tracked datasets',
+    },
+    {
+      label: 'Tracked Documents',
+      value: (localDbOverview?.trackedDocuments ?? 0).toLocaleString(),
+      detail: 'Persisted in local registry',
+    },
+    {
+      label: 'Vectors',
+      value: (apiStats?.total_vectors ?? 0).toLocaleString(),
+      detail: 'Reported by API/native stats',
+    },
+    {
+      label: 'Index Size',
+      value: formatBytes(apiStats?.index_size ?? localDbOverview?.indexFileBytes ?? 0),
+      detail: 'Active HNSW footprint',
+    },
+  ];
+
+  const renderBackButton = () => (
+    <button
+      onClick={() => setViewMode('dashboard')}
+      className="demo-button"
+      style={{ marginBottom: '15px', background: 'transparent', border: '1px solid var(--border)' }}
+    >
+      ← Back to Dashboard
+    </button>
+  );
 
   return (
     <div className="app-container" data-theme={currentTheme.name}>
       <header className="app-header">
         <div>
-          <h1 className="app-title">HEKTOR Vector Database Studio</h1>
+          <h1 className="app-title">HEKTOR Studio</h1>
           <p style={{ fontSize: '11px', opacity: 0.7, marginTop: '2px' }}>
-            Perceptual Quantization & Multi-Geometry 3D Visualization
+            Local-first machine-memory command center
           </p>
         </div>
         <div className="theme-selector">
           <span style={{ fontSize: '13px', marginRight: '10px', opacity: 0.8 }}>
             {nativeStatus}
           </span>
-          <select 
-            value={currentTheme.name} 
-            onChange={(e) => setTheme(e.target.value)}
+          <select
+            value={currentTheme.name}
+            onChange={(event) => setTheme(event.target.value)}
             className="theme-dropdown"
           >
-            {availableThemes.map(t => (
-              <option key={t.name} value={t.name}>
-                {t.displayName}
+            {availableThemes.map((theme) => (
+              <option key={theme.name} value={theme.name}>
+                {theme.displayName}
               </option>
             ))}
           </select>
         </div>
       </header>
-      
+
       <main className="app-main">
         {viewMode === 'dashboard' ? (
           <div className="welcome-section">
-            {/* Database Stats */}
+            <div className="status-badge">
+              API: {apiStatusMessage} · DB Path: {config.dbPath || 'unconfigured'}
+            </div>
+
+            {overviewError && (
+              <div className="feature-card" style={{ marginBottom: '20px', borderColor: 'var(--error)' }}>
+                <h3>Overview Error</h3>
+                <p>{overviewError}</p>
+              </div>
+            )}
+
             <div className="feature-grid" style={{ marginBottom: '20px' }}>
-              <div className="feature-card">
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>Total Vectors</div>
-                <div style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '5px' }}>
-                  {dbStats.vectors.toLocaleString()}
+              {dashboardCards.map((card) => (
+                <div className="feature-card" key={card.label}>
+                  <div className="metric-label">{card.label}</div>
+                  <div className="metric-value">{card.value}</div>
+                  <div className="metric-detail">{card.detail}</div>
                 </div>
-              </div>
+              ))}
+            </div>
+
+            <div className="two-column-grid">
               <div className="feature-card">
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>Collections</div>
-                <div style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '5px' }}>
-                  {dbStats.collections}
+                <h3>System Overview</h3>
+                <div className="kv-grid">
+                  <span>Host</span><strong>{systemOverview?.hostname ?? '—'}</strong>
+                  <span>CPU</span><strong>{systemOverview ? `${systemOverview.cpuCores} cores` : '—'}</strong>
+                  <span>Load</span><strong>{systemOverview ? systemOverview.loadAverage.map((value) => value.toFixed(2)).join(' / ') : '—'}</strong>
+                  <span>Memory</span><strong>{systemOverview ? `${formatBytes(systemOverview.usedMemoryBytes)} / ${formatBytes(systemOverview.totalMemoryBytes)}` : '—'}</strong>
+                  <span>App RSS</span><strong>{systemOverview ? formatBytes(systemOverview.appMemoryBytes) : '—'}</strong>
+                  <span>Uptime</span><strong>{systemOverview ? formatUptime(systemOverview.uptimeSeconds) : '—'}</strong>
                 </div>
+                <p style={{ marginTop: '12px' }}>{systemOverview?.cpuModel ?? 'No system telemetry yet.'}</p>
               </div>
+
               <div className="feature-card">
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>Index Size (MB)</div>
-                <div style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '5px' }}>
-                  {dbStats.indexSize}
-                </div>
-              </div>
-              <div className="feature-card">
-                <div style={{ fontSize: '12px', opacity: 0.7 }}>Memory (MB)</div>
-                <div style={{ fontSize: '28px', fontWeight: 'bold', marginTop: '5px' }}>
-                  {dbStats.memoryUsage}
+                <h3>Database Footprint</h3>
+                <div className="kv-grid">
+                  <span>Registry</span><strong>{localDbOverview?.registryPresent ? 'Present' : 'Missing'}</strong>
+                  <span>Vectors</span><strong>{formatBytes(localDbOverview?.vectorsFileBytes ?? 0)}</strong>
+                  <span>Index</span><strong>{formatBytes(localDbOverview?.indexFileBytes ?? 0)}</strong>
+                  <span>Metadata</span><strong>{formatBytes(localDbOverview?.metadataFileBytes ?? 0)}</strong>
+                  <span>Config</span><strong>{formatBytes(localDbOverview?.configFileBytes ?? 0)}</strong>
+                  <span>API Status</span><strong>{apiHealth ? 'Healthy' : 'Offline / auth required'}</strong>
                 </div>
               </div>
             </div>
 
-            {/* Performance & Status */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px', marginBottom: '20px' }}>
-              <div className="feature-card">
-                <h3 style={{ marginBottom: '15px' }}>Real-time Performance</h3>
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' }}>
-                    <span style={{ opacity: 0.7 }}>Queries/sec</span>
-                    <span style={{ fontFamily: 'monospace' }}>{dbStats.queriesPerSec}</span>
-                  </div>
-                  <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ width: '75%', height: '100%', background: 'var(--primary)' }}></div>
-                  </div>
-                </div>
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '5px' }}>
-                    <span style={{ opacity: 0.7 }}>Avg Latency (ms)</span>
-                    <span style={{ fontFamily: 'monospace' }}>{dbStats.avgLatency}</span>
-                  </div>
-                  <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: '4px', overflow: 'hidden' }}>
-                    <div style={{ width: '45%', height: '100%', background: 'var(--accent)' }}></div>
-                  </div>
-                </div>
+            <div className="feature-card" style={{ marginTop: '20px' }}>
+              <div className="section-header">
+                <h3>Collections</h3>
+                <button className="demo-button" onClick={() => void refreshOverview()} style={{ marginLeft: 0 }}>
+                  Refresh
+                </button>
               </div>
-
-              <div className="feature-card">
-                <h3 style={{ marginBottom: '15px' }}>System Status</h3>
-                <div style={{ fontSize: '13px', lineHeight: '1.8' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ opacity: 0.7 }}>Database:</span>
-                    <span style={{ color: 'var(--accent)' }}>✓ Ready</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ opacity: 0.7 }}>Index:</span>
-                    <span style={{ color: 'var(--accent)' }}>✓ HNSW Active</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ opacity: 0.7 }}>Native Addon:</span>
-                    <span style={{ color: 'var(--accent)' }}>{window.hektorAPI ? '✓ Loaded' : '⚠ Not Available'}</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ opacity: 0.7 }}>Storage:</span>
-                    <span style={{ color: 'var(--accent)' }}>✓ MMAP</span>
-                  </div>
-                </div>
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Dimension</th>
+                      <th>Metric</th>
+                      <th>Documents</th>
+                      <th>Created</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleCollections.length > 0 ? visibleCollections.map((collection) => (
+                      <tr key={collection.name}>
+                        <td>{collection.name}</td>
+                        <td>{collection.dimension || '—'}</td>
+                        <td>{collection.metric}</td>
+                        <td>{collection.documentCount.toLocaleString()}</td>
+                        <td>{collection.createdAt ? new Date(collection.createdAt).toLocaleString() : '—'}</td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={5}>No persisted collections found yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
 
-            {/* Quick Actions */}
-            <div className="feature-card" style={{ marginBottom: '20px' }}>
-              <h3 style={{ marginBottom: '15px' }}>Quick Actions</h3>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '10px' }}>
-                <button className="demo-button">Create Collection</button>
-                <button className="demo-button" style={{ background: 'transparent', border: '1px solid var(--border)' }}>
-                  Import Data
+            <div className="feature-card" style={{ marginTop: '20px' }}>
+              <h3 style={{ marginBottom: '15px' }}>Studio Workspaces</h3>
+              <div className="action-grid">
+                <button className="demo-button" onClick={() => setViewMode('search')} style={{ marginLeft: 0 }}>
+                  Search Lab
                 </button>
-                <button className="demo-button" style={{ background: 'transparent', border: '1px solid var(--border)' }}>
-                  Run Benchmark
+                <button className="demo-button" onClick={() => setViewMode('analytics')} style={{ marginLeft: 0 }}>
+                  Telemetry Summary
                 </button>
-                <button className="demo-button" style={{ background: 'transparent', border: '1px solid var(--border)' }}>
-                  Optimize Index
+                <button className="demo-button" onClick={() => setViewMode('3d')} style={{ marginLeft: 0 }}>
+                  Vector Space
+                </button>
+                <button className="demo-button" onClick={() => setViewMode('quantization')} style={{ marginLeft: 0 }}>
+                  PQ Studio
                 </button>
               </div>
             </div>
+          </div>
+        ) : viewMode === 'search' ? (
+          <div className="welcome-section">
+            {renderBackButton()}
+            <h2 style={{ marginBottom: '18px' }}>Search Lab</h2>
+            <div className="two-column-grid">
+              <div className="feature-card">
+                <h3>API Connection</h3>
+                <div className="form-grid">
+                  <label>
+                    API URL
+                    <input className="studio-input" value={apiUrl} onChange={(event) => setApiUrl(event.target.value)} />
+                  </label>
+                  <label>
+                    Username
+                    <input className="studio-input" value={apiUsername} onChange={(event) => setApiUsername(event.target.value)} />
+                  </label>
+                  <label>
+                    Password
+                    <input className="studio-input" type="password" value={apiPassword} onChange={(event) => setApiPassword(event.target.value)} />
+                  </label>
+                </div>
+                <div className="action-grid">
+                  <button className="demo-button" onClick={() => void handleConnect()} disabled={isConnecting} style={{ marginLeft: 0 }}>
+                    {isConnecting ? 'Connecting…' : authToken ? 'Reconnect' : 'Connect'}
+                  </button>
+                  {authToken && (
+                    <button
+                      className="demo-button"
+                      style={{ marginLeft: 0, background: 'transparent', border: '1px solid var(--border)' }}
+                      onClick={() => {
+                        setAuthToken(null);
+                        setApiStats(null);
+                        setCollections([]);
+                        setSearchResults([]);
+                      }}
+                    >
+                      Disconnect
+                    </button>
+                  )}
+                </div>
+                <p style={{ marginTop: '12px' }}>{apiStatusMessage}</p>
+              </div>
 
-            {/* Core Features */}
-            <h2 style={{ marginBottom: '15px', fontSize: '20px' }}>Core Features</h2>
+              <div className="feature-card">
+                <h3>Query Workspace</h3>
+                <div className="form-grid">
+                  <label>
+                    Collection
+                    <select className="studio-input" value={selectedCollection} onChange={(event) => setSelectedCollection(event.target.value)}>
+                      <option value="">Select collection</option>
+                      {visibleCollections.map((collection) => (
+                        <option key={collection.name} value={collection.name}>
+                          {collection.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Query
+                    <textarea
+                      className="studio-input studio-textarea"
+                      value={searchQuery}
+                      onChange={(event) => setSearchQuery(event.target.value)}
+                      placeholder="Enter a semantic query"
+                    />
+                  </label>
+                  <label>
+                    Filter JSON
+                    <textarea
+                      className="studio-input studio-textarea"
+                      value={searchFiltersText}
+                      onChange={(event) => setSearchFiltersText(event.target.value)}
+                      placeholder='{"year":{"$gte":2024},"language":"en"}'
+                    />
+                  </label>
+                  <label>
+                    Top K
+                    <input
+                      className="studio-input"
+                      type="number"
+                      min={1}
+                      max={100}
+                      value={searchTopK}
+                      onChange={(event) => setSearchTopK(Number(event.target.value))}
+                    />
+                  </label>
+                </div>
+                <button className="demo-button" onClick={() => void handleSearch()} disabled={isSearching} style={{ marginLeft: 0 }}>
+                  {isSearching ? 'Searching…' : 'Run Search'}
+                </button>
+                {searchError && <p style={{ color: 'var(--error)', marginTop: '12px' }}>{searchError}</p>}
+              </div>
+            </div>
+
+            <div className="feature-card" style={{ marginTop: '20px' }}>
+              <h3>Results</h3>
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Score</th>
+                      <th>Content</th>
+                      <th>Metadata</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {searchResults.length > 0 ? searchResults.map((result) => (
+                      <tr key={result.id}>
+                        <td>{result.id}</td>
+                        <td>{result.score.toFixed(4)}</td>
+                        <td>{result.content || '—'}</td>
+                        <td><pre className="json-preview">{JSON.stringify(result.metadata, null, 2)}</pre></td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={4}>No search results yet.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        ) : viewMode === 'analytics' ? (
+          <div className="welcome-section">
+            {renderBackButton()}
+            <h2 style={{ marginBottom: '18px' }}>Telemetry Summary</h2>
             <div className="feature-grid">
-              <div className="feature-card" style={{ cursor: 'pointer' }} onClick={() => setViewMode('search')}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🔍</div>
-                <h3>Vector Search</h3>
-                <p>Semantic search with k-NN, filtering, and hybrid BM25 fusion</p>
+              <div className="feature-card">
+                <div className="metric-label">System Memory</div>
+                <div className="metric-value">{systemOverview ? formatBytes(systemOverview.usedMemoryBytes) : '—'}</div>
+                <div className="metric-detail">{systemOverview ? `of ${formatBytes(systemOverview.totalMemoryBytes)}` : 'Waiting for local telemetry'}</div>
               </div>
-
-              <div className="feature-card" style={{ cursor: 'pointer' }} onClick={() => setViewMode('ingest')}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>📥</div>
-                <h3>Data Ingestion</h3>
-                <p>Import from 11+ formats with auto-chunking and metadata extraction</p>
+              <div className="feature-card">
+                <div className="metric-label">App RSS</div>
+                <div className="metric-value">{systemOverview ? formatBytes(systemOverview.appMemoryBytes) : '—'}</div>
+                <div className="metric-detail">Electron main process</div>
               </div>
-
-              <div className="feature-card" style={{ cursor: 'pointer' }} onClick={() => setViewMode('3d')}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🎯</div>
-                <h3>3D Visualization</h3>
-                <p>Multi-geometry: Euclidean, Hyperbolic, Parabolic</p>
+              <div className="feature-card">
+                <div className="metric-label">Vector Store</div>
+                <div className="metric-value">{formatBytes(localDbOverview?.vectorsFileBytes ?? 0)}</div>
+                <div className="metric-detail">mmap-backed file size</div>
               </div>
-
-              <div className="feature-card" style={{ cursor: 'pointer' }} onClick={() => setViewMode('quantization')}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🎨</div>
-                <h3>Perceptual Quantization</h3>
-                <p>HDR-aware compression with Dolby PQ (ST 2084) & HLG</p>
+              <div className="feature-card">
+                <div className="metric-label">API Uptime</div>
+                <div className="metric-value">{apiHealth ? formatUptime(apiHealth.uptime_seconds) : 'Offline'}</div>
+                <div className="metric-detail">Health endpoint</div>
               </div>
+            </div>
 
-              <div className="feature-card" style={{ cursor: 'pointer' }} onClick={() => setViewMode('analytics')}>
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>📊</div>
-                <h3>Analytics & Monitoring</h3>
-                <p>Real-time metrics and performance profiling</p>
+            <div className="two-column-grid" style={{ marginTop: '20px' }}>
+              <div className="feature-card">
+                <h3>Machine</h3>
+                <div className="kv-grid">
+                  <span>Platform</span><strong>{systemOverview ? `${systemOverview.platform}/${systemOverview.arch}` : '—'}</strong>
+                  <span>CPU</span><strong>{systemOverview?.cpuModel ?? '—'}</strong>
+                  <span>Cores</span><strong>{systemOverview?.cpuCores ?? '—'}</strong>
+                  <span>Load Avg</span><strong>{systemOverview ? systemOverview.loadAverage.map((value) => value.toFixed(2)).join(' / ') : '—'}</strong>
+                  <span>Node</span><strong>{systemOverview?.nodeVersion ?? '—'}</strong>
+                  <span>DB Path</span><strong>{config.dbPath || '—'}</strong>
+                </div>
               </div>
 
               <div className="feature-card">
-                <div style={{ fontSize: '32px', marginBottom: '10px' }}>🤖</div>
-                <h3>AI Assistant</h3>
-                <p>Contextual optimization and intelligent suggestions</p>
+                <h3>Database</h3>
+                <div className="kv-grid">
+                  <span>Collections</span><strong>{(apiStats?.collections ?? localDbOverview?.collectionCount ?? 0).toLocaleString()}</strong>
+                  <span>Tracked Docs</span><strong>{(localDbOverview?.trackedDocuments ?? 0).toLocaleString()}</strong>
+                  <span>Vectors</span><strong>{(apiStats?.total_vectors ?? 0).toLocaleString()}</strong>
+                  <span>Index Size</span><strong>{formatBytes(apiStats?.index_size ?? localDbOverview?.indexFileBytes ?? 0)}</strong>
+                  <span>Memory Usage</span><strong>{formatBytes(apiStats?.memory_usage_bytes ?? 0)}</strong>
+                  <span>Native</span><strong>{nativeStatus}</strong>
+                </div>
               </div>
             </div>
           </div>
         ) : viewMode === 'quantization' ? (
           <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div style={{ 
-              display: 'flex', 
-              justifyContent: 'space-between', 
-              alignItems: 'center',
-              padding: '10px 12px',
-              borderBottom: '1px solid rgba(255,255,255,0.1)',
-            }}>
-              <button 
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '10px 12px',
+                borderBottom: '1px solid rgba(255,255,255,0.1)',
+              }}
+            >
+              <button
                 onClick={() => setViewMode('dashboard')}
                 className="demo-button"
                 style={{ background: 'transparent', border: '1px solid var(--border)' }}
@@ -256,13 +733,13 @@ function App() {
             </div>
             <div style={{ flex: 1, minHeight: 0 }}>
               <PerceptualQuantizationPanel
-                vectors={demoVectors.map((v, i) => ({
-                  id: v.id,
-                  values: [...v.position, Math.random(), Math.random(), Math.random(), Math.random(), Math.random()],
+                vectors={demoVectors.map((vector) => ({
+                  id: vector.id,
+                  values: [...vector.position, vector.distance, vector.position[0], vector.position[1], vector.position[2]],
                 }))}
-                onQuantize={async (config) => {
-                  console.log('Quantizing with config:', config);
-                  await new Promise(resolve => setTimeout(resolve, 1000));
+                onQuantize={async (panelConfig) => {
+                  console.log('Quantizing with config:', panelConfig);
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
                 }}
                 onExport={(format) => {
                   console.log('Exporting as:', format);
@@ -272,67 +749,57 @@ function App() {
           </div>
         ) : viewMode === '3d' ? (
           <div>
-            <button 
-              onClick={() => setViewMode('dashboard')}
-              className="demo-button"
-              style={{ marginBottom: '10px', background: 'transparent', border: '1px solid var(--border)' }}
-            >
-              ← Back to Dashboard
-            </button>
+            {renderBackButton()}
             <div className="demo-container">
-              <VectorSpace3D 
+              <VectorSpace3D
                 vectors={demoVectors}
                 geometry="euclidean"
-                onVectorClick={(vec) => console.log('Clicked vector:', vec)}
+                onVectorClick={(vector) => console.log('Clicked vector:', vector)}
               />
             </div>
           </div>
         ) : (
           <div className="welcome-section">
-            <button 
-              onClick={() => setViewMode('dashboard')}
-              className="demo-button"
-              style={{ marginBottom: '15px', background: 'transparent', border: '1px solid var(--border)' }}
-            >
-              ← Back to Dashboard
-            </button>
-            <h2 style={{ marginBottom: '10px' }}>
-              {viewMode === 'search' ? 'Vector Search' : 
-               viewMode === 'ingest' ? 'Data Ingestion' : 'Analytics & Monitoring'}
-            </h2>
+            {renderBackButton()}
+            <h2 style={{ marginBottom: '10px' }}>Data Ingestion</h2>
             <div className="feature-card">
               <p style={{ opacity: 0.7 }}>
-                {viewMode === 'search' ? 'Search interface coming in next iteration...' :
-                 viewMode === 'ingest' ? 'Data ingestion pipeline coming in next iteration...' :
-                 'Analytics dashboard coming in next iteration...'}
+                Ingestion is still being completed, but the Studio is now reading real local system and collection state.
               </p>
               <p style={{ fontSize: '13px', opacity: 0.5, marginTop: '10px' }}>
-                {viewMode === 'search' ? 'Will include: Semantic search, k-NN, filtering by date/type/asset, hybrid BM25, fusion methods' :
-                 viewMode === 'ingest' ? 'Will support: 11+ adapters (CSV, JSON, PDF, XML, Excel), auto-chunking, metadata extraction' :
-                 'Will include: Performance profiling, query analytics, index benchmarking, telemetry'}
+                Next build slice: import workflows, dataset inspection, and job-backed progress for large loads.
               </p>
             </div>
           </div>
         )}
       </main>
-      
+
       <footer className="app-footer">
-        <p>HEKTOR v4.0.0 | C++23 SIMD-Optimized | 96.8% Recall @ 8.5ms | Billion-Scale Ready | {currentTheme.displayName}</p>
+        <p>
+          HEKTOR Studio | Collections {visibleCollections.length} | API {apiHealth ? 'Online' : 'Offline'} | {currentTheme.displayName}
+        </p>
       </footer>
     </div>
   );
 }
 
-// Global type declarations
 declare global {
   interface Window {
+    electronAPI?: {
+      getAppVersion: () => Promise<string>;
+      getTheme: (themeName: string) => Promise<unknown>;
+      getStudioConfig: () => Promise<StudioConfig>;
+      getSystemOverview: () => Promise<SystemOverview>;
+      getLocalDatabaseOverview: () => Promise<LocalDatabaseOverview>;
+      onThemeChanged: (callback: (theme: unknown) => void) => void;
+    };
     hektorAPI?: {
-      openDatabase: (path: string) => any;
-      closeDatabase: () => any;
-      addVector: (vector: number[], metadata?: any) => any;
-      queryVectors: (vector: number[], topK?: number) => any;
+      openDatabase: (path: string) => unknown;
+      closeDatabase: () => unknown;
+      addVector: (vector: number[], metadata?: Record<string, unknown>) => unknown;
+      queryVectors: (vector: number[], topK?: number) => unknown;
       queryVectorsAsync: (vector: number[], topK: number, callback: Function) => void;
-      getVersion: () => string;
+      getVersion: () => unknown;
       isNativeAvailable: () => boolean;
     };
   }
