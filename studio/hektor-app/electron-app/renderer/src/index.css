@@ -274,6 +274,21 @@ body {
   color: var(--bg-primary);
 }
 
+.demo-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.danger-button {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.danger-button:hover {
+  background-color: var(--error);
+  color: white;
+}
+
 /* Status badge */
 .status-badge {
   display: inline-block;

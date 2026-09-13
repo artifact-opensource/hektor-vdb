@@ -81,6 +81,12 @@ interface SearchResultItem {
   metadata: Record<string, unknown>;
 }
 
+interface CollectionDraft {
+  name: string;
+  dimension: number;
+  metric: string;
+}
+
 function formatBytes(bytes: number): string {
   if (!bytes) return '0 B';
   const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -150,8 +156,21 @@ function App() {
   const [searchFiltersText, setSearchFiltersText] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResultItem[]>([]);
   const [searchError, setSearchError] = useState<string | null>(null);
+  const [managementMessage, setManagementMessage] = useState<string | null>(null);
+  const [managementError, setManagementError] = useState<string | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
+  const [isCreatingCollection, setIsCreatingCollection] = useState(false);
+  const [isDeletingCollection, setIsDeletingCollection] = useState(false);
+  const [isAddingDocument, setIsAddingDocument] = useState(false);
+  const [collectionDraft, setCollectionDraft] = useState<CollectionDraft>({
+    name: '',
+    dimension: 1536,
+    metric: 'cosine',
+  });
+  const [documentContent, setDocumentContent] = useState('');
+  const [documentType, setDocumentType] = useState('general');
+  const [documentMetadataText, setDocumentMetadataText] = useState('');
 
   const visibleCollections = useMemo(() => {
     if (collections.length > 0) {
@@ -232,19 +251,25 @@ function App() {
     setSelectedCollection((current) => current || nextCollections[0]?.name || '');
   }, []);
 
-  const refreshOverview = useCallback(async () => {
+  const refreshAuthedData = useCallback(async (baseUrl?: string, token?: string) => {
+    const nextBaseUrl = baseUrl ?? apiUrl;
+    const nextToken = token ?? authToken;
     await refreshLocalOverview();
-    await refreshApiHealth(apiUrl);
-    if (authToken) {
-      try {
-        await refreshAuthorizedOverview(apiUrl, authToken);
-      } catch (error) {
-        setApiStats(null);
-        setCollections([]);
-        setApiStatusMessage(error instanceof Error ? error.message : 'Authenticated requests failed');
-      }
+    await refreshApiHealth(nextBaseUrl);
+    if (nextToken) {
+      await refreshAuthorizedOverview(nextBaseUrl, nextToken);
     }
   }, [apiUrl, authToken, refreshApiHealth, refreshAuthorizedOverview, refreshLocalOverview]);
+
+  const refreshOverview = useCallback(async () => {
+    try {
+      await refreshAuthedData();
+    } catch (error) {
+      setApiStats(null);
+      setCollections([]);
+      setApiStatusMessage(error instanceof Error ? error.message : 'Authenticated requests failed');
+    }
+  }, [refreshAuthedData]);
 
   useEffect(() => {
     if (currentTheme.name === 'quantum-slate-dark') {
@@ -299,7 +324,7 @@ function App() {
       const payload = await response.json() as { access_token: string };
       setAuthToken(payload.access_token);
       setApiStatusMessage('Authenticated to local API');
-      await refreshAuthorizedOverview(apiUrl, payload.access_token);
+      await refreshAuthedData(apiUrl, payload.access_token);
     } catch (error) {
       setAuthToken(null);
       setApiStats(null);
@@ -308,7 +333,136 @@ function App() {
     } finally {
       setIsConnecting(false);
     }
-  }, [apiPassword, apiUrl, apiUsername, refreshAuthorizedOverview]);
+  }, [apiPassword, apiUrl, apiUsername, refreshAuthedData]);
+
+  const createAuthHeaders = useCallback(() => {
+    if (!authToken) {
+      throw new Error('Connect to the API first.');
+    }
+
+    return {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer '.concat(authToken),
+    };
+  }, [authToken]);
+
+  const handleCreateCollection = useCallback(async () => {
+    setManagementError(null);
+    setManagementMessage(null);
+
+    if (!collectionDraft.name.trim()) {
+      setManagementError('Collection name is required.');
+      return;
+    }
+
+    setIsCreatingCollection(true);
+    try {
+      const response = await fetch(`${apiUrl}/collections`, {
+        method: 'POST',
+        headers: createAuthHeaders(),
+        body: JSON.stringify({
+          name: collectionDraft.name.trim(),
+          dimension: Number(collectionDraft.dimension),
+          metric: collectionDraft.metric,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Create collection failed with status ${response.status}`);
+      }
+
+      const created = await response.json() as CollectionInfo;
+      setCollectionDraft({ name: '', dimension: created.dimension, metric: created.metric });
+      setSelectedCollection(created.name);
+      setManagementMessage(`Created collection ${created.name}.`);
+      await refreshAuthedData();
+    } catch (error) {
+      setManagementError(error instanceof Error ? error.message : 'Failed to create collection');
+    } finally {
+      setIsCreatingCollection(false);
+    }
+  }, [apiUrl, collectionDraft, createAuthHeaders, refreshAuthedData]);
+
+  const handleDeleteCollection = useCallback(async (collectionName: string) => {
+    setManagementError(null);
+    setManagementMessage(null);
+
+    if (!window.confirm(`Delete collection "${collectionName}"?`)) {
+      return;
+    }
+
+    setIsDeletingCollection(true);
+    try {
+      const response = await fetch(`${apiUrl}/collections/${encodeURIComponent(collectionName)}`, {
+        method: 'DELETE',
+        headers: createAuthHeaders(),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Delete collection failed with status ${response.status}`);
+      }
+
+      setSelectedCollection((current) => (current === collectionName ? '' : current));
+      setManagementMessage(`Deleted collection ${collectionName}.`);
+      await refreshAuthedData();
+    } catch (error) {
+      setManagementError(error instanceof Error ? error.message : 'Failed to delete collection');
+    } finally {
+      setIsDeletingCollection(false);
+    }
+  }, [apiUrl, createAuthHeaders, refreshAuthedData]);
+
+  const handleAddDocument = useCallback(async () => {
+    setManagementError(null);
+    setManagementMessage(null);
+
+    if (!selectedCollection) {
+      setManagementError('Select a collection before ingesting.');
+      return;
+    }
+
+    if (!documentContent.trim()) {
+      setManagementError('Document content is required.');
+      return;
+    }
+
+    let parsedMetadata: Record<string, unknown> = {};
+    if (documentMetadataText.trim()) {
+      try {
+        parsedMetadata = JSON.parse(documentMetadataText) as Record<string, unknown>;
+      } catch {
+        setManagementError('Document metadata must be valid JSON.');
+        return;
+      }
+    }
+
+    setIsAddingDocument(true);
+    try {
+      const response = await fetch(`${apiUrl}/collections/${encodeURIComponent(selectedCollection)}/documents`, {
+        method: 'POST',
+        headers: createAuthHeaders(),
+        body: JSON.stringify({
+          content: documentContent,
+          metadata: parsedMetadata,
+          document_type: documentType || 'general',
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Add document failed with status ${response.status}`);
+      }
+
+      const payload = await response.json() as { id: string };
+      setDocumentContent('');
+      setDocumentMetadataText('');
+      setManagementMessage(`Added document ${payload.id} to ${selectedCollection}.`);
+      await refreshAuthedData();
+    } catch (error) {
+      setManagementError(error instanceof Error ? error.message : 'Failed to add document');
+    } finally {
+      setIsAddingDocument(false);
+    }
+  }, [apiUrl, createAuthHeaders, documentContent, documentMetadataText, documentType, refreshAuthedData, selectedCollection]);
 
   const handleSearch = useCallback(async () => {
     setSearchError(null);
@@ -517,6 +671,9 @@ function App() {
                 <button className="demo-button" onClick={() => setViewMode('search')} style={{ marginLeft: 0 }}>
                   Search Lab
                 </button>
+                <button className="demo-button" onClick={() => setViewMode('ingest')} style={{ marginLeft: 0 }}>
+                  Collections & Ingest
+                </button>
                 <button className="demo-button" onClick={() => setViewMode('analytics')} style={{ marginLeft: 0 }}>
                   Telemetry Summary
                 </button>
@@ -653,6 +810,156 @@ function App() {
               </div>
             </div>
           </div>
+        ) : viewMode === 'ingest' ? (
+          <div className="welcome-section">
+            {renderBackButton()}
+            <h2 style={{ marginBottom: '18px' }}>Collections & Ingest</h2>
+            <div className="two-column-grid">
+              <div className="feature-card">
+                <h3>Create Collection</h3>
+                <div className="form-grid">
+                  <label>
+                    Name
+                    <input
+                      className="studio-input"
+                      value={collectionDraft.name}
+                      onChange={(event) => setCollectionDraft((current) => ({ ...current, name: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    Dimension
+                    <input
+                      className="studio-input"
+                      type="number"
+                      min={1}
+                      max={4096}
+                      value={collectionDraft.dimension}
+                      onChange={(event) => setCollectionDraft((current) => ({ ...current, dimension: Number(event.target.value) }))}
+                    />
+                  </label>
+                  <label>
+                    Metric
+                    <select
+                      className="studio-input"
+                      value={collectionDraft.metric}
+                      onChange={(event) => setCollectionDraft((current) => ({ ...current, metric: event.target.value }))}
+                    >
+                      <option value="cosine">cosine</option>
+                      <option value="euclidean">euclidean</option>
+                      <option value="dot_product">dot_product</option>
+                    </select>
+                  </label>
+                </div>
+                <button className="demo-button" onClick={() => void handleCreateCollection()} disabled={isCreatingCollection} style={{ marginLeft: 0 }}>
+                  {isCreatingCollection ? 'Creating…' : 'Create Collection'}
+                </button>
+              </div>
+
+              <div className="feature-card">
+                <h3>Add Document</h3>
+                <div className="form-grid">
+                  <label>
+                    Target Collection
+                    <select className="studio-input" value={selectedCollection} onChange={(event) => setSelectedCollection(event.target.value)}>
+                      <option value="">Select collection</option>
+                      {visibleCollections.map((collection) => (
+                        <option key={collection.name} value={collection.name}>
+                          {collection.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    Document Type
+                    <input className="studio-input" value={documentType} onChange={(event) => setDocumentType(event.target.value)} />
+                  </label>
+                  <label>
+                    Content
+                    <textarea
+                      className="studio-input studio-textarea"
+                      value={documentContent}
+                      onChange={(event) => setDocumentContent(event.target.value)}
+                      placeholder="Paste text to embed and store"
+                    />
+                  </label>
+                  <label>
+                    Metadata JSON
+                    <textarea
+                      className="studio-input studio-textarea"
+                      value={documentMetadataText}
+                      onChange={(event) => setDocumentMetadataText(event.target.value)}
+                      placeholder='{"source":"studio","topic":"demo"}'
+                    />
+                  </label>
+                </div>
+                <button className="demo-button" onClick={() => void handleAddDocument()} disabled={isAddingDocument} style={{ marginLeft: 0 }}>
+                  {isAddingDocument ? 'Adding…' : 'Add Document'}
+                </button>
+              </div>
+            </div>
+
+            {(managementMessage || managementError) && (
+              <div className="feature-card" style={{ marginTop: '20px', borderColor: managementError ? 'var(--error)' : 'var(--accent-color)' }}>
+                <h3>Status</h3>
+                {managementMessage && <p>{managementMessage}</p>}
+                {managementError && <p style={{ color: 'var(--error)' }}>{managementError}</p>}
+              </div>
+            )}
+
+            <div className="feature-card" style={{ marginTop: '20px' }}>
+              <div className="section-header">
+                <h3>Existing Collections</h3>
+                <button className="demo-button" onClick={() => void refreshOverview()} style={{ marginLeft: 0 }}>
+                  Refresh
+                </button>
+              </div>
+              <div className="data-table-wrap">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Dimension</th>
+                      <th>Metric</th>
+                      <th>Documents</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visibleCollections.length > 0 ? visibleCollections.map((collection) => (
+                      <tr key={collection.name}>
+                        <td>{collection.name}</td>
+                        <td>{collection.dimension || '—'}</td>
+                        <td>{collection.metric}</td>
+                        <td>{collection.documentCount.toLocaleString()}</td>
+                        <td>
+                          <div className="action-grid">
+                            <button className="demo-button" style={{ marginLeft: 0 }} onClick={() => {
+                              setSelectedCollection(collection.name);
+                              setViewMode('search');
+                            }}>
+                              Search
+                            </button>
+                            <button
+                              className="demo-button danger-button"
+                              style={{ marginLeft: 0 }}
+                              onClick={() => void handleDeleteCollection(collection.name)}
+                              disabled={isDeletingCollection}
+                            >
+                              {isDeletingCollection ? 'Deleting…' : 'Delete'}
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    )) : (
+                      <tr>
+                        <td colSpan={5}>No collections available.</td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
         ) : viewMode === 'analytics' ? (
           <div className="welcome-section">
             {renderBackButton()}
@@ -759,18 +1066,7 @@ function App() {
             </div>
           </div>
         ) : (
-          <div className="welcome-section">
-            {renderBackButton()}
-            <h2 style={{ marginBottom: '10px' }}>Data Ingestion</h2>
-            <div className="feature-card">
-              <p style={{ opacity: 0.7 }}>
-                Ingestion is still being completed, but the Studio is now reading real local system and collection state.
-              </p>
-              <p style={{ fontSize: '13px', opacity: 0.5, marginTop: '10px' }}>
-                Next build slice: import workflows, dataset inspection, and job-backed progress for large loads.
-              </p>
-            </div>
-          </div>
+          <div className="welcome-section">{renderBackButton()}</div>
         )}
       </main>
 
